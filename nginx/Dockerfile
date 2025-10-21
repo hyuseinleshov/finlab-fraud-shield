@@ -9,4 +9,4 @@ COPY ssl /etc/nginx/ssl
 EXPOSE 80
 EXPOSE 443
 
-HEALTHCHECK CMD wget --no-verbose --tries=1 --spider https://localhost || exit 1
+HEALTHCHECK CMD pgrep nginx || exit 1
