@@ -1,0 +1,39 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.idea/
+.vscode/
+.project
+.classpath
+.settings/
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Docker
+*.log
+.env
+docker-compose.override.yml
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSL certificates (keep the script)
+nginx/ssl/*.crt
+nginx/ssl/*.key
+nginx/ssl/*.pem
+!nginx/ssl/generate-certs.sh
+
+# Test results
+stress_tests/**/*.jtl
+stress_tests/**/*.log
+stress_tests/**/*.tmp
+stress_tests/**/*.bak

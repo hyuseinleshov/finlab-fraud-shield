@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: gateway
+  main:
+    web-application-type: servlet
+  datasource:
+    url: jdbc:postgresql://postgres:5432/fraud_db
+    username: frauduser
+    password: fraudpass123
+    driver-class-name: org.postgresql.Driver
+
+server:
+  port: 8080
