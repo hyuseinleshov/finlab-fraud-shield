@@ -1,10 +1,8 @@
 package com.finlab.accounts;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class AccountsApplicationTests {
+class AccountsApplicationTests extends AbstractIntegrationTest {
 
 	@Test
 	void contextLoads() {

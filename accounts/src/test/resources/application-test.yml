@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: accounts-test
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: INFO
+    com.finlab.accounts: DEBUG
+    org.springframework.jdbc: DEBUG
+    org.testcontainers: INFO
+
+server:
+  port: 0
