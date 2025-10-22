@@ -64,6 +64,26 @@ public class AuditLogRepository {
     }
 
     /**
+     * Logs an invoice validation event to the audit log.
+     */
+    public void logInvoiceValidation(String userId, String resourceId, String ipAddress, String userAgent, Map<String, Object> details) {
+        String sql = """
+            INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, timestamp)
+            VALUES (?, 'VALIDATE_INVOICE', 'INVOICE', ?, ?::inet, ?, ?::jsonb, CURRENT_TIMESTAMP)
+            """;
+
+        int[] types = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+
+        String detailsJson = details != null ? convertMapToJson(details) : "{}";
+
+        jdbcTemplate.update(sql,
+            new Object[]{userId, resourceId, ipAddress, userAgent, detailsJson},
+            types);
+
+        log.debug("Logged invoice validation - User: {}, Invoice: {}, IP: {}", userId, resourceId, ipAddress);
+    }
+
+    /**
      * Simple JSON converter for details map.
      * Uses basic string concatenation for simplicity.
      */
