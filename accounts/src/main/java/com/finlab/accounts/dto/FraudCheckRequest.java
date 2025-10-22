@@ -1,28 +1,25 @@
 package com.finlab.accounts.dto;
 
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 
 /**
  * Request DTO for fraud detection validation.
  */
 public record FraudCheckRequest(
+    @NotBlank(message = "IBAN cannot be null or empty")
     String iban,
+
+    @NotNull(message = "Amount cannot be null")
+    @DecimalMin(value = "0.01", message = "Amount must be positive")
     BigDecimal amount,
+
+    @NotNull(message = "Vendor ID cannot be null")
+    @Positive(message = "Vendor ID must be positive")
     Long vendorId,
+
+    @NotBlank(message = "Invoice number cannot be null or empty")
     String invoiceNumber
 ) {
-    public FraudCheckRequest {
-        if (iban == null || iban.isBlank()) {
-            throw new IllegalArgumentException("IBAN cannot be null or empty");
-        }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-        if (vendorId == null) {
-            throw new IllegalArgumentException("Vendor ID cannot be null");
-        }
-        if (invoiceNumber == null || invoiceNumber.isBlank()) {
-            throw new IllegalArgumentException("Invoice number cannot be null or empty");
-        }
-    }
 }
