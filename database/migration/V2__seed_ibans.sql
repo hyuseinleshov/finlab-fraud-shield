@@ -1,109 +1,124 @@
 -- V2__seed_ibans.sql
--- Generate 1 million valid Bulgarian IBANs (Assignment requirement)
-CREATE TABLE ibans (
-    id BIGSERIAL PRIMARY KEY,
-    iban VARCHAR(22) NOT NULL UNIQUE,
-    is_risky BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (LENGTH(iban) = 22)
+-- Generate 1 million VALID Bulgarian IBANs with MOD 97 check digits
+
+-- Step 1: Create UNLOGGED temp table for fast bulk insert (no WAL overhead)
+CREATE UNLOGGED TABLE ibans_temp (
+    iban VARCHAR(22),
+    is_risky BOOLEAN
 );
 
-CREATE INDEX idx_ibans_lookup ON ibans(iban);
-CREATE INDEX idx_ibans_risky ON ibans(iban) WHERE is_risky = TRUE;
-
--- ISO 7064 MOD 97 IBAN validation functions
-CREATE OR REPLACE FUNCTION letter_to_number(letter CHAR) RETURNS TEXT AS $$
-BEGIN
-    RETURN (ASCII(UPPER(letter)) - ASCII('A') + 10)::TEXT;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
-CREATE OR REPLACE FUNCTION string_to_iban_numeric(input_str TEXT) RETURNS TEXT AS $$
-DECLARE
-    result TEXT := '';
-    i INTEGER;
-    current_char CHAR;
-BEGIN
-    FOR i IN 1..LENGTH(input_str) LOOP
-        current_char := SUBSTRING(input_str FROM i FOR 1);
-        IF current_char BETWEEN 'A' AND 'Z' OR current_char BETWEEN 'a' AND 'z' THEN
-            result := result || letter_to_number(current_char);
-        ELSE
-            result := result || current_char;
-        END IF;
-    END LOOP;
-    RETURN result;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
-CREATE OR REPLACE FUNCTION calculate_iban_check_digits(
+-- Step 2: MOD 97 check digit calculation function (inline optimized)
+CREATE OR REPLACE FUNCTION calculate_bg_iban_check(
     bank_code VARCHAR(4),
     branch_code VARCHAR(4),
     account_number VARCHAR(10)
 ) RETURNS VARCHAR(2) AS $$
 DECLARE
     iban_base TEXT;
-    iban_numeric TEXT;
+    numeric_str TEXT;
+    remainder INTEGER;
     check_digits INTEGER;
 BEGIN
+    -- Rearrange: BANK + BRANCH + ACCOUNT + 'BG00'
     iban_base := bank_code || branch_code || account_number || 'BG00';
-    iban_numeric := string_to_iban_numeric(iban_base);
-    check_digits := 98 - (iban_numeric::NUMERIC % 97);
+
+    -- Convert letters to numbers: B=11, G=16, etc.
+    numeric_str := TRANSLATE(iban_base,
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        '101112131415161718192021222324252627282930313233343536');
+
+    -- Calculate MOD 97 using piece-wise approach (avoid NUMERIC overflow)
+    remainder := 0;
+    FOR i IN 1..LENGTH(numeric_str) BY 7 LOOP
+        remainder := ((remainder::TEXT || SUBSTRING(numeric_str FROM i FOR 7))::BIGINT % 97)::INTEGER;
+    END LOOP;
+
+    check_digits := 98 - remainder;
     RETURN LPAD(check_digits::TEXT, 2, '0');
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Generate 1M IBANs with 10% marked as risky
-CREATE OR REPLACE FUNCTION generate_bulgarian_ibans(total_count INTEGER, risky_percentage DECIMAL)
-RETURNS VOID AS $$
+-- Step 3: Generate 1M IBANs with progress tracking
+DO $$
 DECLARE
+    batch_size INTEGER := 50000;
+    total_batches INTEGER := 20;
+    current_batch INTEGER;
     bank_code VARCHAR(4);
     branch_code VARCHAR(4);
     account_number VARCHAR(10);
     check_digits VARCHAR(2);
     full_iban VARCHAR(22);
     is_risky_flag BOOLEAN;
-    batch_size INTEGER := 10000;
-    current_batch INTEGER := 0;
-    i INTEGER;
+    batch_start INTEGER;
+    batch_end INTEGER;
 BEGIN
-    FOR i IN 1..total_count LOOP
-        bank_code := CASE (i % 10)
-            WHEN 0 THEN 'BANK' WHEN 1 THEN 'UNCR' WHEN 2 THEN 'STSA'
-            WHEN 3 THEN 'RZBB' WHEN 4 THEN 'BNBG' WHEN 5 THEN 'FINV'
-            WHEN 6 THEN 'IORT' WHEN 7 THEN 'BUIN' WHEN 8 THEN 'CECB'
-            ELSE 'CREX'
-        END;
+    FOR current_batch IN 1..total_batches LOOP
+        batch_start := (current_batch - 1) * batch_size + 1;
+        batch_end := current_batch * batch_size;
 
-        branch_code := LPAD(((i / 100) % 10000)::TEXT, 4, '0');
-        account_number := LPAD((i % 10000000000)::TEXT, 10, '0');
-        check_digits := calculate_iban_check_digits(bank_code, branch_code, account_number);
-        full_iban := 'BG' || check_digits || bank_code || branch_code || account_number;
-        is_risky_flag := (i % 100) < (risky_percentage * 100);
+        -- Batch insert for better performance
+        INSERT INTO ibans_temp (iban, is_risky)
+        SELECT
+            'BG' ||
+            calculate_bg_iban_check(
+                CASE (gs % 10)
+                    WHEN 0 THEN 'BANK' WHEN 1 THEN 'UNCR' WHEN 2 THEN 'STSA'
+                    WHEN 3 THEN 'RZBB' WHEN 4 THEN 'BNBG' WHEN 5 THEN 'FINV'
+                    WHEN 6 THEN 'IORT' WHEN 7 THEN 'BUIN' WHEN 8 THEN 'CECB'
+                    ELSE 'CREX'
+                END,
+                LPAD(((gs / 100) % 10000)::TEXT, 4, '0'),
+                LPAD((gs % 10000000000)::TEXT, 10, '0')
+            ) ||
+            CASE (gs % 10)
+                WHEN 0 THEN 'BANK' WHEN 1 THEN 'UNCR' WHEN 2 THEN 'STSA'
+                WHEN 3 THEN 'RZBB' WHEN 4 THEN 'BNBG' WHEN 5 THEN 'FINV'
+                WHEN 6 THEN 'IORT' WHEN 7 THEN 'BUIN' WHEN 8 THEN 'CECB'
+                ELSE 'CREX'
+            END ||
+            LPAD(((gs / 100) % 10000)::TEXT, 4, '0') ||
+            LPAD((gs % 10000000000)::TEXT, 10, '0') AS iban,
+            (gs % 100) < 10 AS is_risky
+        FROM generate_series(batch_start, batch_end) AS gs;
 
-        INSERT INTO ibans (iban, is_risky) VALUES (full_iban, is_risky_flag);
-
-        IF i % batch_size = 0 THEN
-            current_batch := current_batch + 1;
-            RAISE NOTICE 'Generated % IBANs (% batches)', i, current_batch;
-        END IF;
+        RAISE NOTICE '[IBAN] Progress: % / 1,000,000 (% complete)',
+            batch_end, ROUND((batch_end::DECIMAL / 1000000 * 100)::NUMERIC, 0)::TEXT || '%';
     END LOOP;
 
-    RAISE NOTICE 'Successfully generated % Bulgarian IBANs', total_count;
-END;
-$$ LANGUAGE plpgsql;
+    RAISE NOTICE '[IBAN] ✓ Generated 1,000,000 VALID Bulgarian IBANs';
+END $$;
 
-SELECT generate_bulgarian_ibans(1000000, 0.10);
+-- Step 4: Convert to production table with proper schema
+CREATE TABLE ibans (
+    id BIGSERIAL PRIMARY KEY,
+    iban VARCHAR(22) NOT NULL,
+    is_risky BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (LENGTH(iban) = 22)
+);
 
-DROP FUNCTION generate_bulgarian_ibans(INTEGER, DECIMAL);
-DROP FUNCTION string_to_iban_numeric(TEXT);
-DROP FUNCTION letter_to_number(CHAR);
+-- Step 5: Copy data from temp to production table
+INSERT INTO ibans (iban, is_risky)
+SELECT iban, is_risky FROM ibans_temp;
 
--- Verify results
+-- Step 6: Create indexes AFTER data load (much faster)
+CREATE UNIQUE INDEX idx_ibans_iban_unique ON ibans(iban);
+CREATE INDEX idx_ibans_risky ON ibans(iban) WHERE is_risky = TRUE;
+
+-- Step 7: Cleanup
+DROP TABLE ibans_temp;
+DROP FUNCTION calculate_bg_iban_check(VARCHAR, VARCHAR, VARCHAR);
+
+-- Step 8: Verify results
 DO $$
 DECLARE
     total_count INTEGER;
     risky_count INTEGER;
+    sample_iban VARCHAR(22);
+    sample_check VARCHAR(2);
+    sample_base TEXT;
+    calculated_mod INTEGER;
 BEGIN
     SELECT COUNT(*) INTO total_count FROM ibans;
     SELECT COUNT(*) INTO risky_count FROM ibans WHERE is_risky = TRUE;
@@ -112,6 +127,22 @@ BEGIN
         RAISE EXCEPTION 'Expected 1,000,000 IBANs but generated %', total_count;
     END IF;
 
-    RAISE NOTICE 'IBAN Generation: % total, % risky (%.2f%%)',
-        total_count, risky_count, (risky_count::DECIMAL / total_count * 100);
+    -- Verify random IBAN passes MOD 97 validation
+    SELECT iban INTO sample_iban FROM ibans ORDER BY random() LIMIT 1;
+    sample_check := SUBSTRING(sample_iban FROM 3 FOR 2);
+    sample_base := SUBSTRING(sample_iban FROM 5) || 'BG' || sample_check;
+
+    -- Basic MOD 97 validation check
+    calculated_mod := (TRANSLATE(sample_base,
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        '101112131415161718192021222324252627282930313233343536')::NUMERIC % 97)::INTEGER;
+
+    IF calculated_mod != 1 THEN
+        RAISE WARNING 'Sample IBAN % failed MOD 97 validation (remainder: %)', sample_iban, calculated_mod;
+    ELSE
+        RAISE NOTICE '[IBAN] ✓ MOD 97 validation passed for sample: %', sample_iban;
+    END IF;
+
+    RAISE NOTICE '[IBAN] Summary: % total, % risky (%)',
+        total_count, risky_count, ROUND((risky_count::DECIMAL / total_count * 100)::NUMERIC, 1)::TEXT || '%';
 END $$;

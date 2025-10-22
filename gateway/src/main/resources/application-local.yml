@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fraud_db
+    username: frauduser
+    password: fraudpass123
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123
+
+logging:
+  level:
+    com.finlab.gateway: DEBUG

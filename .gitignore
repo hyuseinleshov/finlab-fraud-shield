@@ -32,6 +32,9 @@ nginx/ssl/*.key
 nginx/ssl/*.pem
 !nginx/ssl/generate-certs.sh
 
+# Development docs
+.dev/
+
 # Test results
 stress_tests/**/*.jtl
 stress_tests/**/*.log

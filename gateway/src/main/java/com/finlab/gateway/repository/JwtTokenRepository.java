@@ -6,6 +6,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 
@@ -31,7 +32,7 @@ public class JwtTokenRepository {
         int[] types = {Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP};
 
         jdbcTemplate.update(sql,
-            new Object[]{userId, token, expiresAt},
+            new Object[]{userId, token, Timestamp.from(expiresAt)},
             types);
 
         log.debug("Saved JWT token for user: {}", userId);
