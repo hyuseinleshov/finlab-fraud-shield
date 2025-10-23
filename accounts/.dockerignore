@@ -1,0 +1,54 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Build outputs
+target/
+build/
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+.vscode/
+.eclipse/
+.settings/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Test outputs
+test-output/
+.pytest_cache/
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+
+# Environment files
+.env
+.env.local
+
+# Maven wrapper JAR (we copy it explicitly)
+.mvn/wrapper/maven-wrapper.jar
+
+# Temporary files
+tmp/
+temp/
+*.tmp
