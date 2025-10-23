@@ -22,10 +22,11 @@ import java.util.Collections;
 @Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(ApiKeyAuthenticationFilter.class);
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyAuthenticationFilter.class);
 
     private static final String API_KEY_HEADER = "X-API-KEY";
     private static final String HEALTH_ENDPOINT = "/actuator/health";
+    private static final String SERVICE_PRINCIPAL = "api-service";
 
     @Value("${security.api-key}")
     private String expectedApiKey;
@@ -39,7 +40,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String requestPath = request.getRequestURI();
 
         if (requestPath.equals(HEALTH_ENDPOINT)) {
-            logger.debug("Allowing unauthenticated access to health endpoint");
+            log.debug("Allowing unauthenticated access to health endpoint");
             filterChain.doFilter(request, response);
             return;
         }
@@ -47,7 +48,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String providedApiKey = request.getHeader(API_KEY_HEADER);
 
         if (providedApiKey == null || providedApiKey.trim().isEmpty()) {
-            logger.warn("Missing API key in request to {}", requestPath);
+            log.warn("Missing API key in request to {}", requestPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"Missing X-API-KEY header\"}");
@@ -55,18 +56,18 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (!expectedApiKey.equals(providedApiKey)) {
-            logger.warn("Invalid API key provided for request to {}", requestPath);
+            log.warn("Invalid API key provided for request to {}", requestPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"Invalid X-API-KEY\"}");
             return;
         }
 
-        logger.debug("Valid API key authenticated for request to {}", requestPath);
+        log.debug("Valid API key authenticated for request to {}", requestPath);
 
         UsernamePasswordAuthenticationToken authentication =
             new UsernamePasswordAuthenticationToken(
-                "api-service", null, Collections.emptyList());
+                SERVICE_PRINCIPAL, null, Collections.emptyList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);

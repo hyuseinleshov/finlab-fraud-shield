@@ -1,5 +1,7 @@
 package com.finlab.gateway.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,9 +22,11 @@ public class AuditLogRepository {
     private static final Logger log = LoggerFactory.getLogger(AuditLogRepository.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public AuditLogRepository(JdbcTemplate jdbcTemplate) {
+    public AuditLogRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     public void logAuthEvent(String userId, String action, String ipAddress, String userAgent, Map<String, Object> details) {
@@ -81,41 +85,11 @@ public class AuditLogRepository {
             return "{}";
         }
 
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            if (!first) {
-                json.append(",");
-            }
-            json.append("\"").append(escapeJson(entry.getKey())).append("\":");
-
-            Object value = entry.getValue();
-            if (value == null) {
-                json.append("null");
-            } else if (value instanceof String) {
-                json.append("\"").append(escapeJson(value.toString())).append("\"");
-            } else if (value instanceof Number || value instanceof Boolean) {
-                json.append(value);
-            } else {
-                json.append("\"").append(escapeJson(value.toString())).append("\"");
-            }
-
-            first = false;
+        try {
+            return objectMapper.writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize audit details to JSON", e);
+            return "{}";
         }
-
-        json.append("}");
-        return json.toString();
-    }
-
-    private String escapeJson(String str) {
-        if (str == null) {
-            return "";
-        }
-        return str.replace("\\", "\\\\")
-                  .replace("\"", "\\\"")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
     }
 }

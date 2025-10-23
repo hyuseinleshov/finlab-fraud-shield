@@ -76,7 +76,7 @@ public class FraudScoringEngine {
 
     /**
      * Performs comprehensive fraud check on a transaction.
-     * Rules execute in parallel for improved performance.
+     * Orchestrates parallel rule execution, score aggregation, and persistence.
      *
      * @param request fraud check request containing transaction details
      * @return fraud check response with decision, score, and risk factors
@@ -85,6 +85,22 @@ public class FraudScoringEngine {
         long startTime = System.currentTimeMillis();
         log.info("Starting fraud check for invoice: {}", request.invoiceNumber());
 
+        List<RuleResult> ruleResults = executeParallelChecks(request);
+        int totalScore = aggregateScore(ruleResults);
+        List<String> riskFactors = extractRiskFactors(ruleResults);
+        FraudCheckResponse.FraudDecision decision = determineDecision(totalScore);
+
+        persistTransaction(request, totalScore, decision, riskFactors);
+        recordVelocityMetrics(request);
+
+        long processingTime = System.currentTimeMillis() - startTime;
+        log.info("Fraud check completed for invoice {}: decision={}, score={}, totalTime={}ms",
+            request.invoiceNumber(), decision, totalScore, processingTime);
+
+        return new FraudCheckResponse(decision, totalScore, riskFactors);
+    }
+
+    private List<RuleResult> executeParallelChecks(FraudCheckRequest request) {
         CompletableFuture<RuleResult> duplicateCheck = CompletableFuture.supplyAsync(() ->
             checkDuplicateInvoice(request.invoiceNumber())
         );
@@ -109,53 +125,42 @@ public class FraudScoringEngine {
             duplicateCheck, ibanValidation, riskyIbanCheck, amountCheck, velocityCheck
         );
 
-        int totalScore = 0;
-        List<String> riskFactors = new ArrayList<>();
-
         try {
             allChecks.orTimeout(150, TimeUnit.MILLISECONDS).join();
 
-            RuleResult dup = duplicateCheck.getNow(null);
-            if (dup != null && dup.triggered()) {
-                totalScore += dup.points();
-                riskFactors.add(dup.message());
-            }
-
-            RuleResult iban = ibanValidation.getNow(null);
-            if (iban != null && iban.triggered()) {
-                totalScore += iban.points();
-                riskFactors.add(iban.message());
-            }
-
-            RuleResult risky = riskyIbanCheck.getNow(null);
-            if (risky != null && risky.triggered()) {
-                totalScore += risky.points();
-                riskFactors.add(risky.message());
-            }
-
-            RuleResult amount = amountCheck.getNow(null);
-            if (amount != null && amount.triggered()) {
-                totalScore += amount.points();
-                riskFactors.add(amount.message());
-            }
-
-            RuleResult velocity = velocityCheck.getNow(null);
-            if (velocity != null && velocity.triggered()) {
-                totalScore += velocity.points();
-                riskFactors.add(velocity.message());
-            }
-
+            return List.of(
+                duplicateCheck.getNow(RuleResult.noMatch()),
+                ibanValidation.getNow(RuleResult.noMatch()),
+                riskyIbanCheck.getNow(RuleResult.noMatch()),
+                amountCheck.getNow(RuleResult.noMatch()),
+                velocityCheck.getNow(RuleResult.noMatch())
+            );
         } catch (Exception e) {
             log.error("Error during parallel fraud check execution", e);
+            return List.of();
         }
+    }
 
-        long processingTime = System.currentTimeMillis() - startTime;
-        log.info("Fraud check rules executed in {}ms", processingTime);
+    private int aggregateScore(List<RuleResult> results) {
+        return results.stream()
+            .filter(RuleResult::triggered)
+            .mapToInt(RuleResult::points)
+            .sum();
+    }
 
-        FraudCheckResponse.FraudDecision decision = determineDecision(totalScore);
+    private List<String> extractRiskFactors(List<RuleResult> results) {
+        return results.stream()
+            .filter(RuleResult::triggered)
+            .map(RuleResult::message)
+            .toList();
+    }
 
-        recordTransaction(request.iban(), request.vendorId(), request.invoiceNumber());
-
+    private void persistTransaction(
+        FraudCheckRequest request,
+        int totalScore,
+        FraudCheckResponse.FraudDecision decision,
+        List<String> riskFactors
+    ) {
         try {
             transactionRepository.saveTransaction(
                 request.iban(),
@@ -169,11 +174,10 @@ public class FraudScoringEngine {
         } catch (Exception e) {
             log.error("Failed to persist transaction, but fraud check completed", e);
         }
+    }
 
-        log.info("Fraud check completed for invoice {}: decision={}, score={}, totalTime={}ms",
-            request.invoiceNumber(), decision, totalScore, processingTime);
-
-        return new FraudCheckResponse(decision, totalScore, riskFactors);
+    private void recordVelocityMetrics(FraudCheckRequest request) {
+        recordTransaction(request.iban(), request.vendorId(), request.invoiceNumber());
     }
 
     private RuleResult checkDuplicateInvoice(String invoiceNumber) {

@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +29,12 @@ public class UserRepository {
         this.userRowMapper = new UserRowMapper();
     }
 
-    public User findByUsername(String username) {
+    @Nullable
+    public User findByUsername(@NonNull String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username cannot be null or blank");
+        }
+
         String sql = """
             SELECT id, username, email, password_hash, full_name, is_active, is_locked,
                    failed_login_attempts, last_login_at, created_at, updated_at
@@ -52,7 +59,12 @@ public class UserRepository {
         }
     }
 
-    public User findByEmail(String email) {
+    @Nullable
+    public User findByEmail(@NonNull String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email cannot be null or blank");
+        }
+
         String sql = """
             SELECT id, username, email, password_hash, full_name, is_active, is_locked,
                    failed_login_attempts, last_login_at, created_at, updated_at
@@ -78,7 +90,11 @@ public class UserRepository {
     }
 
     @Transactional
-    public void updateLastLogin(String username) {
+    public void updateLastLogin(@NonNull String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username cannot be null or blank");
+        }
+
         String sql = """
             UPDATE users
             SET last_login_at = CURRENT_TIMESTAMP,
@@ -96,7 +112,11 @@ public class UserRepository {
     }
 
     @Transactional
-    public void incrementFailedLoginAttempts(String username) {
+    public void incrementFailedLoginAttempts(@NonNull String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username cannot be null or blank");
+        }
+
         String sql = """
             UPDATE users
             SET failed_login_attempts = failed_login_attempts + 1
@@ -113,7 +133,17 @@ public class UserRepository {
     }
 
     @Transactional
-    public void save(User user) {
+    public void save(@NonNull User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            throw new IllegalArgumentException("Username cannot be null or blank");
+        }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Email cannot be null or blank");
+        }
+
         String sql = """
             INSERT INTO users (username, email, password_hash, full_name, is_active, is_locked, failed_login_attempts)
             VALUES (?, ?, ?, ?, ?, ?, ?)

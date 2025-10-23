@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Client service for communicating with the Accounts microservice.
@@ -16,7 +17,7 @@ import org.springframework.web.client.RestClient;
 @Service
 public class AccountsServiceClient {
 
-    private static final Logger logger = LoggerFactory.getLogger(AccountsServiceClient.class);
+    private static final Logger log = LoggerFactory.getLogger(AccountsServiceClient.class);
 
     private final RestClient restClient;
     private final String accountsServiceUrl;
@@ -39,12 +40,18 @@ public class AccountsServiceClient {
      * @throws org.springframework.web.client.RestClientException if communication fails
      */
     public FraudCheckResponse validateInvoice(FraudCheckRequest request) {
-        logger.debug("Forwarding fraud validation request to Accounts service: iban={}, amount={}, vendorId={}, invoiceNumber={}",
+        log.debug("Forwarding fraud validation request to Accounts service: iban={}, amount={}, vendorId={}, invoiceNumber={}",
                 request.iban(), request.amount(), request.vendorId(), request.invoiceNumber());
 
         try {
+            String uri = UriComponentsBuilder
+                    .fromUriString(accountsServiceUrl)
+                    .path("/api/v1/invoices/validate")
+                    .build()
+                    .toUriString();
+
             FraudCheckResponse response = restClient.post()
-                    .uri(accountsServiceUrl + "/api/v1/invoices/validate")
+                    .uri(uri)
                     .header("X-API-KEY", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
@@ -52,13 +59,13 @@ public class AccountsServiceClient {
                     .body(FraudCheckResponse.class);
 
             if (response != null) {
-                logger.info("Fraud validation completed: decision={}, score={}, riskFactors={}",
+                log.info("Fraud validation completed: decision={}, score={}, riskFactors={}",
                         response.decision(), response.fraudScore(), response.riskFactors());
             }
 
             return response;
         } catch (Exception e) {
-            logger.error("Failed to communicate with Accounts service", e);
+            log.error("Failed to communicate with Accounts service", e);
             throw e;
         }
     }

@@ -41,13 +41,13 @@ public class JwtTokenRepository {
         log.debug("Saved {} JWT token for user: {}", tokenType, userId);
     }
 
-    public boolean tokenExists(String userId, String token) {
+    public boolean tokenExists(Long userId, String token) {
         String sql = """
             SELECT COUNT(*) FROM jwt_tokens
             WHERE user_id = ? AND token = ? AND expires_at > CURRENT_TIMESTAMP
             """;
 
-        int[] types = {Types.VARCHAR, Types.VARCHAR};
+        int[] types = {Types.BIGINT, Types.VARCHAR};
 
         try {
             Integer count = jdbcTemplate.queryForObject(sql,
@@ -62,9 +62,9 @@ public class JwtTokenRepository {
     }
 
     @Transactional
-    public void deleteToken(String userId, String token) {
+    public void deleteToken(Long userId, String token) {
         String sql = "DELETE FROM jwt_tokens WHERE user_id = ? AND token = ?";
-        int[] types = {Types.VARCHAR, Types.VARCHAR};
+        int[] types = {Types.BIGINT, Types.VARCHAR};
 
         int deleted = jdbcTemplate.update(sql,
             new Object[]{userId, token},

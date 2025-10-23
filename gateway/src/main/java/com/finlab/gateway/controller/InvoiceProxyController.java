@@ -4,6 +4,7 @@ import com.finlab.gateway.dto.FraudCheckRequest;
 import com.finlab.gateway.dto.FraudCheckResponse;
 import com.finlab.gateway.repository.AuditLogRepository;
 import com.finlab.gateway.service.AccountsServiceClient;
+import com.finlab.gateway.util.HttpRequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -26,7 +27,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/invoices")
 public class InvoiceProxyController {
 
-    private static final Logger logger = LoggerFactory.getLogger(InvoiceProxyController.class);
+    private static final Logger log = LoggerFactory.getLogger(InvoiceProxyController.class);
 
     private final AccountsServiceClient accountsServiceClient;
     private final AuditLogRepository auditLogRepository;
@@ -52,10 +53,10 @@ public class InvoiceProxyController {
             HttpServletRequest httpRequest) {
 
         String username = authentication.getName();
-        String ipAddress = getClientIpAddress(httpRequest);
-        String userAgent = httpRequest.getHeader("User-Agent");
+        String ipAddress = HttpRequestUtils.extractClientIp(httpRequest);
+        String userAgent = HttpRequestUtils.extractUserAgent(httpRequest);
 
-        logger.info("Invoice validation request from user: {}, invoice: {}, iban: {}, amount: {}",
+        log.info("Invoice validation request from user: {}, invoice: {}, iban: {}, amount: {}",
                 username, request.invoiceNumber(), request.iban(), request.amount());
 
         Map<String, Object> auditDetails = new HashMap<>();
@@ -67,29 +68,15 @@ public class InvoiceProxyController {
                 username,
                 request.invoiceNumber(),
                 ipAddress,
-                userAgent != null ? userAgent : "Unknown",
+                userAgent,
                 auditDetails
         );
 
         FraudCheckResponse response = accountsServiceClient.validateInvoice(request);
 
-        logger.info("Invoice validation completed for user: {}, invoice: {}, decision: {}, score: {}",
+        log.info("Invoice validation completed for user: {}, invoice: {}, decision: {}, score: {}",
                 username, request.invoiceNumber(), response.decision(), response.fraudScore());
 
         return ResponseEntity.ok(response);
-    }
-
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-
-        return request.getRemoteAddr();
     }
 }

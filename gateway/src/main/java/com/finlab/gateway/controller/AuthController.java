@@ -4,6 +4,7 @@ import com.finlab.gateway.dto.LoginRequest;
 import com.finlab.gateway.dto.LoginResponse;
 import com.finlab.gateway.dto.RefreshRequest;
 import com.finlab.gateway.service.AuthService;
+import com.finlab.gateway.util.HttpRequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +41,8 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
-        String ipAddress = extractIpAddress(request);
-        String userAgent = extractUserAgent(request);
+        String ipAddress = HttpRequestUtils.extractClientIp(request);
+        String userAgent = HttpRequestUtils.extractUserAgent(request);
 
         log.info("Login request received for user: {}, IP: {}", loginRequest.getUsername(), ipAddress);
 
@@ -64,8 +65,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
         String token = extractToken(request);
-        String ipAddress = extractIpAddress(request);
-        String userAgent = extractUserAgent(request);
+        String ipAddress = HttpRequestUtils.extractClientIp(request);
+        String userAgent = HttpRequestUtils.extractUserAgent(request);
 
         if (token == null) {
             log.warn("Logout request without token, IP: {}", ipAddress);
@@ -93,8 +94,8 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refreshToken(@RequestBody RefreshRequest refreshRequest, HttpServletRequest request) {
-        String ipAddress = extractIpAddress(request);
-        String userAgent = extractUserAgent(request);
+        String ipAddress = HttpRequestUtils.extractClientIp(request);
+        String userAgent = HttpRequestUtils.extractUserAgent(request);
 
         log.info("Token refresh request received, IP: {}", ipAddress);
 
@@ -115,28 +116,5 @@ public class AuthController {
         }
 
         return null;
-    }
-
-    private String extractIpAddress(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-
-        if (ip == null || ip.isEmpty()) {
-            ip = request.getHeader("X-Real-IP");
-        }
-
-        if (ip == null || ip.isEmpty()) {
-            ip = request.getRemoteAddr();
-        }
-
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-
-        return ip != null ? ip : "unknown";
-    }
-
-    private String extractUserAgent(HttpServletRequest request) {
-        String userAgent = request.getHeader("User-Agent");
-        return userAgent != null ? userAgent : "unknown";
     }
 }

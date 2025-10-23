@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -53,7 +55,8 @@ public class JwtService {
         this.jwtTokenRepository = jwtTokenRepository;
     }
 
-    public String generateToken(Long userId, String username) {
+    @NonNull
+    public String generateToken(@NonNull Long userId, @NonNull String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("type", "access");
@@ -61,7 +64,8 @@ public class JwtService {
         return createToken(claims, userId, username, jwtExpirationMs);
     }
 
-    public String generateRefreshToken(Long userId, String username) {
+    @NonNull
+    public String generateRefreshToken(@NonNull Long userId, @NonNull String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("type", "refresh");
@@ -98,7 +102,7 @@ public class JwtService {
      * @param token JWT token to validate
      * @return true if token is valid and not blacklisted, false otherwise
      */
-    public boolean validateToken(String token) {
+    public boolean validateToken(@NonNull String token) {
         try {
             if (isTokenBlacklisted(token)) {
                 log.debug("Token is blacklisted");
@@ -108,21 +112,22 @@ public class JwtService {
             Claims claims = extractAllClaims(token);
 
             String redisKey = REDIS_TOKEN_PREFIX + token;
-            String cachedUserId = redisTemplate.opsForValue().get(redisKey);
+            String cachedUsername = redisTemplate.opsForValue().get(redisKey);
 
-            if (cachedUserId != null) {
+            if (cachedUsername != null) {
                 log.debug("Token validated from Redis cache");
                 return true;
             }
 
-            String userId = claims.getSubject();
+            String username = claims.getSubject();
+            Long userId = claims.get("userId", Long.class);
             boolean existsInDb = jwtTokenRepository.tokenExists(userId, token);
 
             if (existsInDb) {
                 log.debug("Token validated from database (Redis miss)");
                 long remainingTtl = claims.getExpiration().getTime() - System.currentTimeMillis();
                 if (remainingTtl > 0) {
-                    redisTemplate.opsForValue().set(redisKey, userId, Duration.ofMillis(remainingTtl));
+                    redisTemplate.opsForValue().set(redisKey, username, Duration.ofMillis(remainingTtl));
                 }
                 return true;
             }
@@ -151,7 +156,8 @@ public class JwtService {
         }
     }
 
-    public String extractUserId(String token) {
+    @Nullable
+    public String extractUserId(@NonNull String token) {
         try {
             Claims claims = extractAllClaims(token);
             return claims.getSubject();
@@ -167,10 +173,11 @@ public class JwtService {
      *
      * @param token JWT token to invalidate
      */
-    public void invalidateToken(String token) {
+    public void invalidateToken(@NonNull String token) {
         try {
             Claims claims = extractAllClaims(token);
-            String userId = claims.getSubject();
+            String username = claims.getSubject();
+            Long userId = claims.get("userId", Long.class);
             long remainingTtl = claims.getExpiration().getTime() - System.currentTimeMillis();
 
             if (remainingTtl > 0) {
@@ -183,7 +190,7 @@ public class JwtService {
             redisTemplate.delete(redisKey);
             jwtTokenRepository.deleteToken(userId, token);
 
-            log.info("Token invalidated for user: {}", userId);
+            log.info("Token invalidated for user: {}", username);
 
         } catch (Exception e) {
             log.error("Failed to invalidate token: {}", e.getMessage(), e);
@@ -208,7 +215,7 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(@NonNull String token) {
         try {
             Claims claims = extractAllClaims(token);
             return claims.getExpiration().before(new Date());
