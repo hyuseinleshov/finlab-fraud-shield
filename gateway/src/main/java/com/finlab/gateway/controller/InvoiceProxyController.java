@@ -58,7 +58,6 @@ public class InvoiceProxyController {
         logger.info("Invoice validation request from user: {}, invoice: {}, iban: {}, amount: {}",
                 username, request.invoiceNumber(), request.iban(), request.amount());
 
-        // Log audit entry
         Map<String, Object> auditDetails = new HashMap<>();
         auditDetails.put("iban", request.iban());
         auditDetails.put("amount", request.amount().toString());
@@ -72,7 +71,6 @@ public class InvoiceProxyController {
                 auditDetails
         );
 
-        // Forward request to Accounts service
         FraudCheckResponse response = accountsServiceClient.validateInvoice(request);
 
         logger.info("Invoice validation completed for user: {}, invoice: {}, decision: {}, score: {}",
@@ -81,9 +79,6 @@ public class InvoiceProxyController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Extracts client IP address from request, handling proxy headers.
-     */
     private String getClientIpAddress(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {

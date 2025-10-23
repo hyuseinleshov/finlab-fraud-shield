@@ -39,7 +39,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithValidRequest_ShouldReturnAllowDecision() throws Exception {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -56,7 +55,6 @@ class FraudControllerTest {
         when(fraudScoringEngine.checkFraud(any(FraudCheckRequest.class)))
             .thenReturn(expectedResponse);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -69,7 +67,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithFraudulentRequest_ShouldReturnBlockDecision() throws Exception {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG99INVALID00000000000",
             new BigDecimal("1500.00"),
@@ -86,7 +83,6 @@ class FraudControllerTest {
         when(fraudScoringEngine.checkFraud(any(FraudCheckRequest.class)))
             .thenReturn(expectedResponse);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -99,7 +95,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithMissingIban_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         String requestJson = """
             {
                 "amount": 1500.00,
@@ -108,7 +103,6 @@ class FraudControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
@@ -120,7 +114,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithNegativeAmount_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         String requestJson = """
             {
                 "iban": "BG80BNBG96611020345678",
@@ -130,7 +123,6 @@ class FraudControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
@@ -141,7 +133,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithNullVendorId_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         String requestJson = """
             {
                 "iban": "BG80BNBG96611020345678",
@@ -150,7 +141,6 @@ class FraudControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
@@ -161,7 +151,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithEmptyInvoiceNumber_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         String requestJson = """
             {
                 "iban": "BG80BNBG96611020345678",
@@ -171,7 +160,6 @@ class FraudControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
@@ -182,7 +170,6 @@ class FraudControllerTest {
 
     @Test
     void validateInvoice_WithReviewDecision_ShouldReturnReviewStatus() throws Exception {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("4990.00"),
@@ -199,7 +186,6 @@ class FraudControllerTest {
         when(fraudScoringEngine.checkFraud(any(FraudCheckRequest.class)))
             .thenReturn(expectedResponse);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/invoices/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -211,7 +197,6 @@ class FraudControllerTest {
 
     @Test
     void health_ShouldReturnOkStatus() throws Exception {
-        // Act & Assert
         mockMvc.perform(get("/api/v1/invoices/health"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("ok"))

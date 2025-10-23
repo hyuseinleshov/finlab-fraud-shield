@@ -25,9 +25,6 @@ public class UserRepository {
         this.userRowMapper = new UserRowMapper();
     }
 
-    /**
-     * Finds a user by username.
-     */
     public User findByUsername(String username) {
         String sql = """
             SELECT id, username, email, password_hash, full_name, is_active, is_locked,
@@ -53,9 +50,6 @@ public class UserRepository {
         }
     }
 
-    /**
-     * Finds a user by email.
-     */
     public User findByEmail(String email) {
         String sql = """
             SELECT id, username, email, password_hash, full_name, is_active, is_locked,
@@ -81,9 +75,6 @@ public class UserRepository {
         }
     }
 
-    /**
-     * Updates last login timestamp for a user.
-     */
     public void updateLastLogin(String username) {
         String sql = """
             UPDATE users
@@ -101,9 +92,6 @@ public class UserRepository {
         log.debug("Updated last login for user: {}", username);
     }
 
-    /**
-     * Increments failed login attempts for a user.
-     */
     public void incrementFailedLoginAttempts(String username) {
         String sql = """
             UPDATE users
@@ -120,9 +108,6 @@ public class UserRepository {
         log.debug("Incremented failed login attempts for user: {}", username);
     }
 
-    /**
-     * Inserts a new user into the database.
-     */
     public void save(User user) {
         String sql = """
             INSERT INTO users (username, email, password_hash, full_name, is_active, is_locked, failed_login_attempts)
@@ -147,9 +132,6 @@ public class UserRepository {
         log.info("Inserted new user: {}", user.getUsername());
     }
 
-    /**
-     * RowMapper for User entity.
-     */
     private static class UserRowMapper implements RowMapper<User> {
         @Override
         public User mapRow(ResultSet rs, int rowNum) throws SQLException {

@@ -24,6 +24,7 @@ import java.util.Map;
 
 /**
  * Stateful JWT service with dual storage (Redis + database) for instant revocation.
+ * Stores tokens in both Redis (sub-1ms lookups) and database (persistence across restarts).
  */
 @Service
 public class JwtService {
@@ -80,7 +81,6 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
 
-        // Redis provides sub-1ms lookups, database ensures persistence across restarts
         String redisKey = REDIS_TOKEN_PREFIX + token;
         redisTemplate.opsForValue().set(redisKey, subject, Duration.ofMillis(expirationMs));
         jwtTokenRepository.saveToken(subject, token, expiration);
@@ -93,7 +93,9 @@ public class JwtService {
 
     /**
      * Validates token using layered approach: blacklist check → Redis → database.
-     * Database fallback ensures validation survives Redis cache evictions.
+     *
+     * @param token JWT token to validate
+     * @return true if token is valid and not blacklisted, false otherwise
      */
     public boolean validateToken(String token) {
         try {
@@ -112,13 +114,11 @@ public class JwtService {
                 return true;
             }
 
-            // Database fallback ensures we don't invalidate sessions on Redis eviction
             String userId = claims.getSubject();
             boolean existsInDb = jwtTokenRepository.tokenExists(userId, token);
 
             if (existsInDb) {
                 log.debug("Token validated from database (Redis miss)");
-                // Restore to Redis to accelerate future validations
                 long remainingTtl = claims.getExpiration().getTime() - System.currentTimeMillis();
                 if (remainingTtl > 0) {
                     redisTemplate.opsForValue().set(redisKey, userId, Duration.ofMillis(remainingTtl));
@@ -161,8 +161,10 @@ public class JwtService {
     }
 
     /**
-     * Blacklisting prevents immediate token reuse after logout.
-     * TTL matches remaining token lifetime to minimize Redis memory usage.
+     * Invalidates token by blacklisting and removing from storage.
+     * Blacklist TTL matches remaining token lifetime to minimize Redis memory usage.
+     *
+     * @param token JWT token to invalidate
      */
     public void invalidateToken(String token) {
         try {

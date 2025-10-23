@@ -19,9 +19,6 @@ public class IBANRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Check if an IBAN is marked as risky in the database.
-     */
     public boolean isRiskyIban(String iban) {
         try {
             String sql = "SELECT is_risky FROM ibans WHERE iban = ? LIMIT 1";

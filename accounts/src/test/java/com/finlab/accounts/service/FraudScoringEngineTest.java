@@ -56,7 +56,6 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithValidTransaction_ShouldReturnAllow() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -69,10 +68,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
         assertEquals(0, response.fraudScore());
         assertTrue(response.riskFactors().isEmpty());
@@ -80,7 +77,6 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithDuplicateInvoice_ShouldAddFiftyPoints() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -93,10 +89,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
         assertEquals(50, response.fraudScore());
         assertTrue(response.riskFactors().stream()
@@ -105,7 +99,6 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithInvalidIban_ShouldAddFiftyPoints() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG99INVALID00000000000",
             new BigDecimal("1500.00"),
@@ -119,10 +112,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
         assertEquals(50, response.fraudScore());
         assertTrue(response.riskFactors().stream()
@@ -131,7 +122,6 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithRiskyIban_ShouldAddFortyPoints() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -144,10 +134,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(true);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
         assertEquals(40, response.fraudScore());
         assertTrue(response.riskFactors().stream()
@@ -156,7 +144,7 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithAmountManipulation_ShouldAddThirtyPoints() {
-        // Arrange - amount just below 5000 threshold
+        // Amount just below 5000 threshold
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("4990.00"),
@@ -169,10 +157,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
         assertEquals(30, response.fraudScore());
         assertTrue(response.riskFactors().stream()
@@ -181,7 +167,6 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithVelocityAnomaly_ShouldAddFifteenPoints() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -194,10 +179,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(6L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
         assertEquals(15, response.fraudScore());
         assertTrue(response.riskFactors().stream()
@@ -206,7 +189,7 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithMultipleRiskFactors_ShouldBlockTransaction() {
-        // Arrange - duplicate + invalid IBAN = 100 points
+        // Duplicate + invalid IBAN = 100 points
         FraudCheckRequest request = new FraudCheckRequest(
             "BG99INVALID00000000000",
             new BigDecimal("1500.00"),
@@ -220,10 +203,8 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.BLOCK, response.decision());
         assertEquals(100, response.fraudScore());
         assertEquals(2, response.riskFactors().size());
@@ -231,7 +212,7 @@ class FraudScoringEngineTest {
 
     @Test
     void checkFraud_WithScoreAtBoundary_ShouldReturnCorrectDecision() {
-        // Arrange - exactly 30 points (ALLOW boundary)
+        // Exactly 30 points (ALLOW boundary)
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("4990.00"),
@@ -244,17 +225,14 @@ class FraudScoringEngineTest {
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
         when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
 
-        // Act
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
-        // Assert
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
         assertEquals(30, response.fraudScore());
     }
 
     @Test
     void checkFraud_ShouldRecordTransactionInDatabase() {
-        // Arrange
         FraudCheckRequest request = new FraudCheckRequest(
             "BG80BNBG96611020345678",
             new BigDecimal("1500.00"),
@@ -269,10 +247,8 @@ class FraudScoringEngineTest {
         when(transactionRepository.saveTransaction(any(), any(), any(), any(), anyInt(), any(), any()))
             .thenReturn(1L);
 
-        // Act
         fraudScoringEngine.checkFraud(request);
 
-        // Assert
         verify(transactionRepository, times(1)).saveTransaction(
             eq(request.iban()),
             eq(request.amount()),

@@ -22,9 +22,6 @@ public class AuditLogRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Logs an authentication event to the audit log.
-     */
     public void logAuthEvent(String userId, String action, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (user_id, action, resource_type, ip_address, user_agent, details, timestamp)
@@ -33,7 +30,6 @@ public class AuditLogRepository {
 
         int[] types = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
 
-        // Convert details map to JSON string
         String detailsJson = details != null ? convertMapToJson(details) : "{}";
 
         jdbcTemplate.update(sql,
@@ -43,9 +39,6 @@ public class AuditLogRepository {
         log.debug("Logged auth event - User: {}, Action: {}, IP: {}", userId, action, ipAddress);
     }
 
-    /**
-     * Logs a failed authentication event (when username is unknown).
-     */
     public void logFailedAuthEvent(String action, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (action, resource_type, ip_address, user_agent, details, timestamp)
@@ -63,9 +56,6 @@ public class AuditLogRepository {
         log.debug("Logged failed auth event - Action: {}, IP: {}", action, ipAddress);
     }
 
-    /**
-     * Logs an invoice validation event to the audit log.
-     */
     public void logInvoiceValidation(String userId, String resourceId, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, timestamp)
@@ -83,10 +73,6 @@ public class AuditLogRepository {
         log.debug("Logged invoice validation - User: {}, Invoice: {}, IP: {}", userId, resourceId, ipAddress);
     }
 
-    /**
-     * Simple JSON converter for details map.
-     * Uses basic string concatenation for simplicity.
-     */
     private String convertMapToJson(Map<String, Object> map) {
         if (map == null || map.isEmpty()) {
             return "{}";
@@ -119,9 +105,6 @@ public class AuditLogRepository {
         return json.toString();
     }
 
-    /**
-     * Escapes special JSON characters.
-     */
     private String escapeJson(String str) {
         if (str == null) {
             return "";

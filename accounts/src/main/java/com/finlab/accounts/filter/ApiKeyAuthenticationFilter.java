@@ -38,17 +38,14 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
 
-        // Allow health check endpoint without authentication
         if (requestPath.equals(HEALTH_ENDPOINT)) {
             logger.debug("Allowing unauthenticated access to health endpoint");
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract API key from header
         String providedApiKey = request.getHeader(API_KEY_HEADER);
 
-        // Validate API key presence
         if (providedApiKey == null || providedApiKey.trim().isEmpty()) {
             logger.warn("Missing API key in request to {}", requestPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -57,7 +54,6 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Validate API key value
         if (!expectedApiKey.equals(providedApiKey)) {
             logger.warn("Invalid API key provided for request to {}", requestPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -66,10 +62,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // API key is valid, set authentication in SecurityContext
         logger.debug("Valid API key authenticated for request to {}", requestPath);
 
-        // Create authentication token and set in security context
         UsernamePasswordAuthenticationToken authentication =
             new UsernamePasswordAuthenticationToken(
                 "api-service", null, Collections.emptyList());

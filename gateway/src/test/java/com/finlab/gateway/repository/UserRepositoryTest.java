@@ -14,10 +14,8 @@ class UserRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void findByUsername_WithExistingUser_ShouldReturnUser() {
-        // Act
         User user = userRepository.findByUsername("testuser");
 
-        // Assert
         assertNotNull(user);
         assertEquals("testuser", user.getUsername());
         assertEquals("test@finlab.bg", user.getEmail());
@@ -28,19 +26,15 @@ class UserRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void findByUsername_WithNonExistentUser_ShouldReturnNull() {
-        // Act
         User user = userRepository.findByUsername("nonexistent");
 
-        // Assert
         assertNull(user);
     }
 
     @Test
     void findByEmail_WithExistingEmail_ShouldReturnUser() {
-        // Act
         User user = userRepository.findByEmail("test@finlab.bg");
 
-        // Assert
         assertNotNull(user);
         assertEquals("testuser", user.getUsername());
         assertEquals("test@finlab.bg", user.getEmail());
@@ -48,22 +42,17 @@ class UserRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void findByEmail_WithNonExistentEmail_ShouldReturnNull() {
-        // Act
         User user = userRepository.findByEmail("nonexistent@finlab.bg");
 
-        // Assert
         assertNull(user);
     }
 
     @Test
     void updateLastLogin_ShouldUpdateTimestamp() {
-        // Arrange
         String username = "testuser";
 
-        // Act
         userRepository.updateLastLogin(username);
 
-        // Assert
         User userAfter = userRepository.findByUsername(username);
         assertNotNull(userAfter);
         // Last login should be updated (or at least not null)
@@ -73,15 +62,12 @@ class UserRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void incrementFailedLoginAttempts_ShouldIncreaseCounter() {
-        // Arrange
         String username = "testuser";
         User userBefore = userRepository.findByUsername(username);
         int attemptsBefore = userBefore.getFailedLoginAttempts();
 
-        // Act
         userRepository.incrementFailedLoginAttempts(username);
 
-        // Assert
         User userAfter = userRepository.findByUsername(username);
         assertNotNull(userAfter);
         assertEquals(attemptsBefore + 1, userAfter.getFailedLoginAttempts());

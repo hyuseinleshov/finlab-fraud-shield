@@ -29,9 +29,6 @@ public class TransactionRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Save a transaction with fraud detection results.
-     */
     public Long saveTransaction(
         String iban,
         BigDecimal amount,
@@ -70,9 +67,6 @@ public class TransactionRepository {
         }
     }
 
-    /**
-     * Count transactions for a specific IBAN within a time window.
-     */
     public int countTransactionsByIbanSince(String iban, Instant since) {
         String sql = "SELECT COUNT(*) FROM transactions WHERE iban = ? AND created_at >= ?";
         try {
@@ -89,9 +83,6 @@ public class TransactionRepository {
         }
     }
 
-    /**
-     * Count transactions for a specific vendor within a time window.
-     */
     public int countTransactionsByVendorSince(Long vendorId, Instant since) {
         String sql = "SELECT COUNT(*) FROM transactions WHERE vendor_id = ? AND created_at >= ?";
         try {

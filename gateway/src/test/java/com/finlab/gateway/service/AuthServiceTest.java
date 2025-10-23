@@ -39,7 +39,6 @@ class AuthServiceTest {
 
     @Test
     void login_WithValidCredentials_ShouldReturnJwtTokens() {
-        // Arrange
         String username = "testuser";
         String password = "password123";
         String passwordHash = passwordEncoder.encode(password);
@@ -55,10 +54,8 @@ class AuthServiceTest {
         when(jwtService.generateToken(username)).thenReturn("access-token");
         when(jwtService.generateRefreshToken(username)).thenReturn("refresh-token");
 
-        // Act
         LoginResponse response = authService.login(username, password, "127.0.0.1", "TestAgent");
 
-        // Assert
         assertNotNull(response);
         assertEquals("access-token", response.getAccessToken());
         assertEquals("refresh-token", response.getRefreshToken());
@@ -71,7 +68,6 @@ class AuthServiceTest {
 
     @Test
     void login_WithInvalidPassword_ShouldThrowAuthenticationException() {
-        // Arrange
         String username = "testuser";
         String password = "wrongpassword";
         String passwordHash = passwordEncoder.encode("correctpassword");
@@ -85,7 +81,6 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername(username)).thenReturn(user);
 
-        // Act & Assert
         assertThrows(AuthenticationException.class, () ->
             authService.login(username, password, "127.0.0.1", "TestAgent")
         );
@@ -96,13 +91,11 @@ class AuthServiceTest {
 
     @Test
     void login_WithNonExistentUser_ShouldThrowAuthenticationException() {
-        // Arrange
         String username = "nonexistent";
         String password = "password123";
 
         when(userRepository.findByUsername(username)).thenReturn(null);
 
-        // Act & Assert
         assertThrows(AuthenticationException.class, () ->
             authService.login(username, password, "127.0.0.1", "TestAgent")
         );
@@ -112,7 +105,6 @@ class AuthServiceTest {
 
     @Test
     void login_WithInactiveAccount_ShouldThrowAuthenticationException() {
-        // Arrange
         String username = "testuser";
         String password = "password123";
         String passwordHash = passwordEncoder.encode(password);
@@ -125,7 +117,6 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername(username)).thenReturn(user);
 
-        // Act & Assert
         AuthenticationException exception = assertThrows(AuthenticationException.class, () ->
             authService.login(username, password, "127.0.0.1", "TestAgent")
         );
@@ -136,7 +127,6 @@ class AuthServiceTest {
 
     @Test
     void login_WithLockedAccount_ShouldThrowAuthenticationException() {
-        // Arrange
         String username = "testuser";
         String password = "password123";
         String passwordHash = passwordEncoder.encode(password);
@@ -149,7 +139,6 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername(username)).thenReturn(user);
 
-        // Act & Assert
         AuthenticationException exception = assertThrows(AuthenticationException.class, () ->
             authService.login(username, password, "127.0.0.1", "TestAgent")
         );
@@ -160,28 +149,23 @@ class AuthServiceTest {
 
     @Test
     void logout_WithValidToken_ShouldInvalidateToken() {
-        // Arrange
         String token = "valid-token";
         String userId = "testuser";
 
         when(jwtService.extractUserId(token)).thenReturn(userId);
 
-        // Act
         authService.logout(token, "127.0.0.1", "TestAgent");
 
-        // Assert
         verify(jwtService).invalidateToken(token);
         verify(auditLogRepository).logAuthEvent(eq(userId), eq("LOGOUT"), anyString(), anyString(), anyMap());
     }
 
     @Test
     void logout_WithInvalidToken_ShouldThrowAuthenticationException() {
-        // Arrange
         String token = "invalid-token";
 
         when(jwtService.extractUserId(token)).thenReturn(null);
 
-        // Act & Assert
         assertThrows(AuthenticationException.class, () ->
             authService.logout(token, "127.0.0.1", "TestAgent")
         );
@@ -191,7 +175,6 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_WithValidRefreshToken_ShouldReturnNewAccessToken() {
-        // Arrange
         String refreshToken = "valid-refresh-token";
         String userId = "testuser";
 
@@ -204,10 +187,8 @@ class AuthServiceTest {
         when(userRepository.findByUsername(userId)).thenReturn(user);
         when(jwtService.generateToken(userId)).thenReturn("new-access-token");
 
-        // Act
         LoginResponse response = authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent");
 
-        // Assert
         assertNotNull(response);
         assertEquals("new-access-token", response.getAccessToken());
         assertEquals(refreshToken, response.getRefreshToken());
@@ -217,12 +198,10 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_WithInvalidToken_ShouldThrowAuthenticationException() {
-        // Arrange
         String refreshToken = "invalid-refresh-token";
 
         when(jwtService.validateToken(refreshToken)).thenReturn(false);
 
-        // Act & Assert
         assertThrows(AuthenticationException.class, () ->
             authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent")
         );
@@ -232,7 +211,6 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_WithInactiveUser_ShouldThrowAuthenticationException() {
-        // Arrange
         String refreshToken = "valid-refresh-token";
         String userId = "testuser";
 
@@ -244,7 +222,6 @@ class AuthServiceTest {
         when(jwtService.extractUserId(refreshToken)).thenReturn(userId);
         when(userRepository.findByUsername(userId)).thenReturn(user);
 
-        // Act & Assert
         assertThrows(AuthenticationException.class, () ->
             authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent")
         );

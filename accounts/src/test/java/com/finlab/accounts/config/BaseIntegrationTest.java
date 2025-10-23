@@ -19,7 +19,6 @@ import org.testcontainers.utility.DockerImageName;
 @Transactional
 public abstract class BaseIntegrationTest {
 
-    // Singleton containers - shared across all test classes
     private static final PostgreSQLContainer<?> postgres;
     private static final GenericContainer<?> redis;
 
@@ -37,20 +36,16 @@ public abstract class BaseIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        // PostgreSQL configuration
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
 
-        // Redis configuration
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
         registry.add("spring.data.redis.password", () -> "");
 
-        // Flyway configuration - use shared migrations from project root
         registry.add("spring.flyway.locations", () -> "filesystem:../database/migration");
 
-        // API Key for testing
         registry.add("security.api-key", () -> "test-api-key-12345");
     }
 }

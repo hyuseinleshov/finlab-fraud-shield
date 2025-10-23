@@ -43,6 +43,14 @@ public class AuthService {
 
     /**
      * Authenticates user and generates JWT tokens.
+     *
+     * @param username user's login username
+     * @param password user's plaintext password
+     * @param ipAddress client IP address for audit logging
+     * @param userAgent client user agent for audit logging
+     * @return login response containing access token, refresh token, and expiration
+     * @throws IllegalArgumentException if username or password is blank
+     * @throws AuthenticationException if authentication fails
      */
     public LoginResponse login(String username, String password, String ipAddress, String userAgent) {
         if (username == null || username.isBlank()) {
@@ -98,14 +106,11 @@ public class AuthService {
             throw new AuthenticationException("Invalid username or password");
         }
 
-        // Generate JWT tokens
         String accessToken = jwtService.generateToken(username);
         String refreshToken = jwtService.generateRefreshToken(username);
 
-        // Update last login
         userRepository.updateLastLogin(username);
 
-        // Log successful login
         Map<String, Object> details = new HashMap<>();
         details.put("method", "password");
         details.put("success", true);
@@ -118,6 +123,12 @@ public class AuthService {
 
     /**
      * Logs out user by invalidating the access token.
+     *
+     * @param token JWT access token to invalidate
+     * @param ipAddress client IP address for audit logging
+     * @param userAgent client user agent for audit logging
+     * @throws IllegalArgumentException if token is blank
+     * @throws AuthenticationException if token is invalid
      */
     public void logout(String token, String ipAddress, String userAgent) {
         if (token == null || token.isBlank()) {
@@ -131,10 +142,8 @@ public class AuthService {
             throw new AuthenticationException("Invalid token");
         }
 
-        // Invalidate token (blacklist and remove from storage)
         jwtService.invalidateToken(token);
 
-        // Log logout event
         Map<String, Object> details = new HashMap<>();
         details.put("method", "token_invalidation");
         auditLogRepository.logAuthEvent(userId, "LOGOUT", ipAddress, userAgent, details);
@@ -144,6 +153,13 @@ public class AuthService {
 
     /**
      * Refreshes access token using refresh token.
+     *
+     * @param refreshToken JWT refresh token
+     * @param ipAddress client IP address for audit logging
+     * @param userAgent client user agent for audit logging
+     * @return new login response with fresh access token
+     * @throws IllegalArgumentException if refresh token is blank
+     * @throws AuthenticationException if refresh token is invalid or user is inactive
      */
     public LoginResponse refreshToken(String refreshToken, String ipAddress, String userAgent) {
         if (refreshToken == null || refreshToken.isBlank()) {
@@ -162,7 +178,6 @@ public class AuthService {
             throw new AuthenticationException("Invalid refresh token");
         }
 
-        // Verify user still exists and is active
         User user = userRepository.findByUsername(userId);
 
         if (user == null || !user.isActive()) {
@@ -170,17 +185,14 @@ public class AuthService {
             throw new AuthenticationException("User account is no longer valid");
         }
 
-        // Generate new access token
         String newAccessToken = jwtService.generateToken(userId);
 
-        // Log token refresh
         Map<String, Object> details = new HashMap<>();
         details.put("method", "refresh_token");
         auditLogRepository.logAuthEvent(userId, "REFRESH_TOKEN", ipAddress, userAgent, details);
 
         log.info("Token refreshed successfully for user: {}", userId);
 
-        // Return new access token with same refresh token
         return new LoginResponse(newAccessToken, refreshToken, jwtExpirationMs);
     }
 }

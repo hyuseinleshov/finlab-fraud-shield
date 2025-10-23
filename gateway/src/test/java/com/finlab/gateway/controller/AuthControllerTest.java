@@ -33,14 +33,12 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void login_WithValidCredentials_ShouldReturn200WithTokens() throws Exception {
-        // Arrange
         LoginRequest loginRequest = new LoginRequest("testuser", "password123");
         LoginResponse loginResponse = new LoginResponse("access-token", "refresh-token", 900000L);
 
         when(authService.login(anyString(), anyString(), anyString(), anyString()))
             .thenReturn(loginResponse);
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
@@ -55,13 +53,11 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void login_WithInvalidCredentials_ShouldReturn401() throws Exception {
-        // Arrange
         LoginRequest loginRequest = new LoginRequest("testuser", "wrongpassword");
 
         when(authService.login(anyString(), anyString(), anyString(), anyString()))
             .thenThrow(new AuthenticationException("Invalid username or password"));
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
@@ -73,10 +69,8 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void logout_WithValidToken_ShouldReturn200() throws Exception {
-        // Arrange
         doNothing().when(authService).logout(anyString(), anyString(), anyString());
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/logout")
                 .header("Authorization", "Bearer valid-token"))
             .andExpect(status().isOk())
@@ -88,7 +82,6 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void logout_WithoutToken_ShouldReturn400() throws Exception {
-        // Act & Assert
         mockMvc.perform(post("/api/auth/logout"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.status").value("error"))
@@ -99,11 +92,9 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void logout_WithInvalidToken_ShouldReturn401() throws Exception {
-        // Arrange
         doThrow(new AuthenticationException("Invalid token"))
             .when(authService).logout(anyString(), anyString(), anyString());
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/logout")
                 .header("Authorization", "Bearer invalid-token"))
             .andExpect(status().isUnauthorized())
@@ -113,14 +104,12 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void refreshToken_WithValidRefreshToken_ShouldReturn200WithNewAccessToken() throws Exception {
-        // Arrange
         RefreshRequest refreshRequest = new RefreshRequest("valid-refresh-token");
         LoginResponse loginResponse = new LoginResponse("new-access-token", "valid-refresh-token", 900000L);
 
         when(authService.refreshToken(anyString(), anyString(), anyString()))
             .thenReturn(loginResponse);
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(refreshRequest)))
@@ -134,13 +123,11 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void refreshToken_WithInvalidRefreshToken_ShouldReturn401() throws Exception {
-        // Arrange
         RefreshRequest refreshRequest = new RefreshRequest("invalid-refresh-token");
 
         when(authService.refreshToken(anyString(), anyString(), anyString()))
             .thenThrow(new AuthenticationException("Invalid or expired refresh token"));
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(refreshRequest)))

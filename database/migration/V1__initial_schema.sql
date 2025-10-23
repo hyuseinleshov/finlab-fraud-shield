@@ -21,7 +21,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_username ON users(username) WHERE is_active = TRUE;
 CREATE INDEX idx_users_email ON users(email) WHERE is_active = TRUE;
 
--- JWT tokens (stateful JWT in Redis AND database per Assignment requirement)
+-- JWT tokens (stateful JWT stored in both Redis and database for instant revocation and persistence)
 CREATE TABLE jwt_tokens (
     id BIGSERIAL PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,

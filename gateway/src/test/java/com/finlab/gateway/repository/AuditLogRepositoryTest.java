@@ -20,7 +20,6 @@ class AuditLogRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void logAuthEvent_ShouldInsertAuditLog() {
-        // Arrange
         String userId = "testuser";
         String action = "LOGIN";
         String ipAddress = "127.0.0.1";
@@ -29,10 +28,8 @@ class AuditLogRepositoryTest extends BaseIntegrationTest {
         details.put("method", "password");
         details.put("success", true);
 
-        // Act
         auditLogRepository.logAuthEvent(userId, action, ipAddress, userAgent, details);
 
-        // Assert
         String sql = "SELECT COUNT(*) FROM audit_log WHERE user_id = ? AND action = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId, action);
         assertNotNull(count);
@@ -41,7 +38,6 @@ class AuditLogRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void logFailedAuthEvent_WithoutUserId_ShouldInsertAuditLog() {
-        // Arrange
         String action = "LOGIN_FAILED";
         String ipAddress = "192.168.1.100";
         String userAgent = "TestAgent/1.0";
@@ -49,10 +45,8 @@ class AuditLogRepositoryTest extends BaseIntegrationTest {
         details.put("username", "nonexistent");
         details.put("reason", "invalid_credentials");
 
-        // Act
         auditLogRepository.logFailedAuthEvent(action, ipAddress, userAgent, details);
 
-        // Assert
         String sql = "SELECT COUNT(*) FROM audit_log WHERE action = ? AND user_id IS NULL";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, action);
         assertNotNull(count);
@@ -61,16 +55,13 @@ class AuditLogRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void logAuthEvent_WithNullDetails_ShouldInsertEmptyJson() {
-        // Arrange
         String userId = "testuser";
         String action = "LOGOUT";
         String ipAddress = "10.0.0.1";
         String userAgent = "TestAgent/1.0";
 
-        // Act
         auditLogRepository.logAuthEvent(userId, action, ipAddress, userAgent, null);
 
-        // Assert
         String sql = "SELECT COUNT(*) FROM audit_log WHERE user_id = ? AND action = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId, action);
         assertNotNull(count);

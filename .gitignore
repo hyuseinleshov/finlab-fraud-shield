@@ -35,7 +35,7 @@ nginx/ssl/*.pem
 # Development docs
 .dev/
 
-# Test results - KEEP HTML reports for assignment submission
+# Test results - KEEP HTML reports for demonstration
 # Only exclude temporary/log files, but COMMIT .jtl and html results
 stress_tests/**/*.log
 stress_tests/**/*.tmp

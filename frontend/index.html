@@ -450,14 +450,11 @@
     </div>
 
     <script>
-        // JWT token storage in memory only (NOT localStorage/sessionStorage)
         let authToken = null;
         let currentUser = null;
 
-        // API base URL
         const API_BASE = '/api';
 
-        // DOM elements
         const loginSection = document.getElementById('loginSection');
         const validationSection = document.getElementById('validationSection');
         const loginForm = document.getElementById('loginForm');
@@ -470,7 +467,6 @@
         const loginBtn = document.getElementById('loginBtn');
         const validateBtn = document.getElementById('validateBtn');
 
-        // Show alert message
         function showAlert(message, type = 'error') {
             alert.textContent = message;
             alert.className = `alert alert-${type} show`;
@@ -479,12 +475,10 @@
             }, 5000);
         }
 
-        // Hide alert
         function hideAlert() {
             alert.classList.remove('show');
         }
 
-        // Toggle sections
         function showLoginSection() {
             loginSection.classList.add('active');
             validationSection.classList.remove('active');
@@ -500,7 +494,6 @@
             hideAlert();
         }
 
-        // Handle login
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideAlert();
@@ -525,11 +518,9 @@
                     throw new Error(data.message || 'Login failed');
                 }
 
-                // Store JWT in memory only
                 authToken = data.accessToken;
                 currentUser = username;
 
-                // Update UI
                 usernameSpan.textContent = username;
                 loginForm.reset();
                 showValidationSection();
@@ -541,7 +532,6 @@
             }
         });
 
-        // Handle logout
         logoutBtn.addEventListener('click', async () => {
             if (!authToken) return;
 
@@ -556,18 +546,15 @@
                 console.error('Logout error:', error);
             }
 
-            // Clear token from memory
             authToken = null;
             currentUser = null;
 
-            // Reset UI
             validationForm.reset();
             resultCard.classList.remove('show');
             showLoginSection();
             showAlert('Logged out successfully', 'success');
         });
 
-        // Handle invoice validation
         validationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideAlert();
@@ -612,7 +599,6 @@
                     throw new Error(data.message || 'Validation failed');
                 }
 
-                // Display results
                 displayResults(data);
                 showAlert('Invoice validated successfully!', 'success');
             } catch (error) {
@@ -622,19 +608,15 @@
             }
         });
 
-        // Display validation results
         function displayResults(data) {
             const { decision, fraudScore, riskFactors } = data;
 
-            // Update decision badge
             const decisionBadge = document.getElementById('decisionBadge');
             decisionBadge.textContent = decision;
             decisionBadge.className = `decision-badge decision-${decision.toLowerCase()}`;
 
-            // Update fraud score
             document.getElementById('fraudScore').textContent = fraudScore;
 
-            // Update risk factors
             const riskList = document.getElementById('riskList');
             riskList.innerHTML = '';
 
@@ -655,12 +637,10 @@
                 riskList.appendChild(li);
             }
 
-            // Show result card
             resultCard.classList.add('show');
             resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        // Test scenarios data
         const testScenarios = {
             'legit': {
                 iban: 'BG80BNBG96611020345678',

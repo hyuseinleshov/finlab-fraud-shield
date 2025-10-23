@@ -17,7 +17,7 @@ spring:
 
 jwt:
   secret: test-jwt-secret-key-minimum-32-bytes-for-hs256-algorithm-testing
-  expiration-ms: 900000        # 15 minutes
+  expiration-ms: 900000  # 15 minutes
   refresh-expiration-ms: 604800000  # 7 days
 
 logging:

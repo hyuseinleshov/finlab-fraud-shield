@@ -32,7 +32,11 @@ public class AuthController {
     }
 
     /**
-     * Login endpoint - generates JWT tokens for valid credentials.
+     * Login endpoint.
+     *
+     * @param loginRequest contains username and password
+     * @param request HTTP request for extracting IP and user agent
+     * @return JWT access and refresh tokens
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
@@ -52,7 +56,10 @@ public class AuthController {
     }
 
     /**
-     * Logout endpoint - invalidates JWT token.
+     * Logout endpoint.
+     *
+     * @param request HTTP request containing JWT token in Authorization header
+     * @return success or error response
      */
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
@@ -78,7 +85,11 @@ public class AuthController {
     }
 
     /**
-     * Refresh token endpoint - generates new access token using refresh token.
+     * Refresh token endpoint.
+     *
+     * @param refreshRequest contains refresh token
+     * @param request HTTP request for extracting IP and user agent
+     * @return new JWT access token
      */
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refreshToken(@RequestBody RefreshRequest refreshRequest, HttpServletRequest request) {
@@ -96,9 +107,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Extracts JWT token from Authorization header.
-     */
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader(AUTHORIZATION_HEADER);
 
@@ -109,9 +117,6 @@ public class AuthController {
         return null;
     }
 
-    /**
-     * Extracts client IP address from request.
-     */
     private String extractIpAddress(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
 
@@ -123,7 +128,6 @@ public class AuthController {
             ip = request.getRemoteAddr();
         }
 
-        // If X-Forwarded-For contains multiple IPs, take the first one
         if (ip != null && ip.contains(",")) {
             ip = ip.split(",")[0].trim();
         }
@@ -131,9 +135,6 @@ public class AuthController {
         return ip != null ? ip : "unknown";
     }
 
-    /**
-     * Extracts User-Agent from request.
-     */
     private String extractUserAgent(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
         return userAgent != null ? userAgent : "unknown";

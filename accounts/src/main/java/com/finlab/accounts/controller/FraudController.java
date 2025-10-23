@@ -26,9 +26,11 @@ public class FraudController {
     }
 
     /**
-     * Validate invoice payment request for fraud.
-     * <p>
-     * Target: <200ms response time (95th percentile)
+     * Validates invoice payment request for fraud.
+     * Performance target: sub-200ms P95 response time.
+     *
+     * @param request fraud check request containing transaction details
+     * @return fraud assessment with decision, score, and risk factors
      */
     @PostMapping("/validate")
     public ResponseEntity<FraudCheckResponse> validateInvoice(
@@ -55,9 +57,6 @@ public class FraudController {
         }
     }
 
-    /**
-     * Health check endpoint for fraud detection service.
-     */
     @GetMapping("/health")
     public ResponseEntity<HealthResponse> health() {
         return ResponseEntity.ok(new HealthResponse("ok", "Fraud detection service operational"));

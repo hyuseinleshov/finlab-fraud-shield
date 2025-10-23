@@ -26,23 +26,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                // Disable CSRF for stateless API (service-to-service communication)
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // Stateless session management (no session cookies)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Allow health check endpoint without authentication
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        // All other requests require authentication
                         .anyRequest().authenticated())
-
-                // Add API key filter before standard authentication
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
                 .build();
     }
 }

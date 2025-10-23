@@ -9,7 +9,6 @@ class AccountsApplicationTests extends BaseIntegrationTest {
 
 	@Test
 	void contextLoads() {
-		// Verifies that Spring application context loads successfully
 		assertTrue(true, "Application context should load without errors");
 	}
 
