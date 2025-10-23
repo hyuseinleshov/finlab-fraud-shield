@@ -30,7 +30,6 @@ class FraudScoringEngineTest {
 
     // Decision thresholds
     private static final int ALLOW_THRESHOLD = 30;
-    private static final int REVIEW_THRESHOLD = 70;
 
     // Test data constants
     private static final String VALID_BULGARIAN_IBAN = "BG80BNBG96611020345678";

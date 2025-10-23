@@ -43,7 +43,6 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private Long testUserId;
-    private String testUsername;
     private String testToken;
     private Long wrongUserId;
 
@@ -53,7 +52,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
         jdbcTemplate.execute(SQL_DELETE_TEST_USERS);
 
         long timestamp = System.currentTimeMillis();
-        testUsername = "testuser_" + timestamp;
+        String testUsername = "testuser_" + timestamp;
         testToken = TOKEN_PREFIX + timestamp;
 
         testUserId = jdbcTemplate.queryForObject(

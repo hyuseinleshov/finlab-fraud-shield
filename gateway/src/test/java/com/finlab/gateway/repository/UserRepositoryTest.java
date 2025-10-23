@@ -69,6 +69,7 @@ class UserRepositoryTest extends BaseIntegrationTest {
     @Test
     void incrementFailedLoginAttempts_ShouldIncreaseCounter() {
         User userBefore = userRepository.findByUsername(TEST_USERNAME);
+        assertNotNull(userBefore);
         int attemptsBefore = userBefore.getFailedLoginAttempts();
 
         userRepository.incrementFailedLoginAttempts(TEST_USERNAME);

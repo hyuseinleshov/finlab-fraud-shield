@@ -41,8 +41,6 @@ class AuthControllerTest extends BaseIntegrationTest {
     private static final long JWT_EXPIRATION_MS = 900000L;
 
     // HTTP status codes
-    private static final int HTTP_OK = 200;
-    private static final int HTTP_BAD_REQUEST = 400;
     private static final int HTTP_UNAUTHORIZED = 401;
 
     // API endpoints

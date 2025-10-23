@@ -33,21 +33,17 @@ class FraudControllerTest {
     private static final String INVALID_IBAN = "BG99INVALID00000000000";
     private static final BigDecimal NORMAL_AMOUNT = new BigDecimal("1500.00");
     private static final BigDecimal THRESHOLD_MANIPULATION_AMOUNT = new BigDecimal("4990.00");
-    private static final BigDecimal NEGATIVE_AMOUNT = new BigDecimal("-100.00");
     private static final Long TEST_VENDOR_ID = 1L;
     private static final String INVOICE_NORMAL = "INV-001";
     private static final String INVOICE_FRAUD = "INV-FRAUD";
     private static final String INVOICE_REVIEW = "INV-REVIEW";
-    private static final String EMPTY_STRING = "";
 
     // Fraud scores
     private static final int SCORE_ZERO = 0;
     private static final int SCORE_DUPLICATE_INVOICE = 50;
     private static final int SCORE_DUPLICATE_AND_INVALID_IBAN = 100;
-    private static final int SCORE_MEDIUM_RISK = 85;
 
     // HTTP status codes
-    private static final int HTTP_OK = 200;
     private static final int HTTP_BAD_REQUEST = 400;
 
     // API endpoints
@@ -70,8 +66,6 @@ class FraudControllerTest {
     // Risk factor messages
     private static final String RISK_DUPLICATE_INVOICE = "Duplicate invoice detected within 24 hours";
     private static final String RISK_INVALID_IBAN_CHECKSUM = "Invalid IBAN: Invalid checksum";
-    private static final String RISK_INVALID_IBAN = "Invalid IBAN";
-    private static final String RISK_AMOUNT_THRESHOLD = "Amount near threshold";
 
     @Autowired
     private MockMvc mockMvc;
