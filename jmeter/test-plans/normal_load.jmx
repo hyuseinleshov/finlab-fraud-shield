@@ -10,12 +10,12 @@
         <collectionProp name="Arguments.arguments">
           <elementProp name="GATEWAY_HOST" elementType="Argument">
             <stringProp name="Argument.name">GATEWAY_HOST</stringProp>
-            <stringProp name="Argument.value">gateway</stringProp>
+            <stringProp name="Argument.value">nginx</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="GATEWAY_PORT" elementType="Argument">
             <stringProp name="Argument.name">GATEWAY_PORT</stringProp>
-            <stringProp name="Argument.value">8080</stringProp>
+            <stringProp name="Argument.value">443</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="TEST_USERNAME" elementType="Argument">
@@ -69,13 +69,21 @@
           </elementProp>
           <stringProp name="HTTPSampler.domain">${GATEWAY_HOST}</stringProp>
           <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
-          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
           <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
           <stringProp name="HTTPSampler.path"></stringProp>
           <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
           <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
           <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
         </ConfigTestElement>
+        <hashTree/>
+
+        <!-- SSL Manager: Accept self-signed certificates -->
+        <DNSCacheManager guiclass="DNSCachePanel" testclass="DNSCacheManager" testname="DNS Cache Manager" enabled="true">
+          <collectionProp name="DNSCacheManager.servers"/>
+          <boolProp name="DNSCacheManager.clearEachIteration">false</boolProp>
+          <boolProp name="DNSCacheManager.isCustomResolver">false</boolProp>
+        </DNSCacheManager>
         <hashTree/>
 
         <!-- HTTP Header Manager -->
