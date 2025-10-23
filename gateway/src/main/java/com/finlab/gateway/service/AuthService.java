@@ -106,8 +106,8 @@ public class AuthService {
             throw new AuthenticationException("Invalid username or password");
         }
 
-        String accessToken = jwtService.generateToken(username);
-        String refreshToken = jwtService.generateRefreshToken(username);
+        String accessToken = jwtService.generateToken(user.getId(), username);
+        String refreshToken = jwtService.generateRefreshToken(user.getId(), username);
 
         userRepository.updateLastLogin(username);
 
@@ -185,7 +185,7 @@ public class AuthService {
             throw new AuthenticationException("User account is no longer valid");
         }
 
-        String newAccessToken = jwtService.generateToken(userId);
+        String newAccessToken = jwtService.generateToken(user.getId(), userId);
 
         Map<String, Object> details = new HashMap<>();
         details.put("method", "refresh_token");

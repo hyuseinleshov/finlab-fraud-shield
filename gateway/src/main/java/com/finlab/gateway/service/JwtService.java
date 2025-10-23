@@ -53,29 +53,29 @@ public class JwtService {
         this.jwtTokenRepository = jwtTokenRepository;
     }
 
-    public String generateToken(String userId) {
+    public String generateToken(Long userId, String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("type", "access");
 
-        return createToken(claims, userId, jwtExpirationMs);
+        return createToken(claims, userId, username, jwtExpirationMs);
     }
 
-    public String generateRefreshToken(String userId) {
+    public String generateRefreshToken(Long userId, String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("type", "refresh");
 
-        return createToken(claims, userId, jwtRefreshExpirationMs);
+        return createToken(claims, userId, username, jwtRefreshExpirationMs);
     }
 
-    private String createToken(Map<String, Object> claims, String subject, long expirationMs) {
+    private String createToken(Map<String, Object> claims, Long userId, String username, long expirationMs) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(expirationMs);
 
         String token = Jwts.builder()
                 .claims(claims)
-                .subject(subject)
+                .subject(username)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey())
@@ -83,11 +83,11 @@ public class JwtService {
 
         String tokenType = (String) claims.get("type");
         String redisKey = REDIS_TOKEN_PREFIX + token;
-        redisTemplate.opsForValue().set(redisKey, subject, Duration.ofMillis(expirationMs));
-        jwtTokenRepository.saveToken(subject, token, expiration, tokenType);
+        redisTemplate.opsForValue().set(redisKey, username, Duration.ofMillis(expirationMs));
+        jwtTokenRepository.saveToken(userId, token, expiration, tokenType);
 
-        log.debug("Generated {} token for user: {}, expires at: {}",
-                  tokenType, subject, expiration);
+        log.debug("Generated {} token for user: {} (ID: {}), expires at: {}",
+                  tokenType, username, userId, expiration);
 
         return token;
     }

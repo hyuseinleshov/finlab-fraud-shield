@@ -47,32 +47,35 @@ class JwtServiceTest {
 
     @Test
     void generateToken_ShouldCreateValidToken() {
-        String userId = "user123";
+        Long userId = 123L;
+        String username = "testuser";
 
-        String token = jwtService.generateToken(userId);
+        String token = jwtService.generateToken(userId, username);
 
         assertNotNull(token);
         assertFalse(token.isEmpty());
-        verify(valueOperations).set(anyString(), eq(userId), any());
+        verify(valueOperations).set(anyString(), eq(username), any());
         verify(jwtTokenRepository).saveToken(eq(userId), eq(token), any(Instant.class), eq("ACCESS"));
     }
 
     @Test
     void extractUserId_ShouldReturnCorrectUserId() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
         String extractedUserId = jwtService.extractUserId(token);
 
-        assertEquals(userId, extractedUserId);
+        assertEquals(username, extractedUserId);
     }
 
     @Test
     void validateToken_WithValidToken_ShouldReturnTrue() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
-        when(valueOperations.get(anyString())).thenReturn(userId);
+        when(valueOperations.get(anyString())).thenReturn(username);
 
         boolean isValid = jwtService.validateToken(token);
 
@@ -98,8 +101,9 @@ class JwtServiceTest {
                 jwtTokenRepository
         );
 
-        String userId = "user123";
-        String token = shortLivedJwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = shortLivedJwtService.generateToken(userId, username);
 
         Thread.sleep(100); // Wait for token to expire
 
@@ -110,8 +114,9 @@ class JwtServiceTest {
 
     @Test
     void validateToken_WithBlacklistedToken_ShouldReturnFalse() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(true);
 
@@ -122,20 +127,22 @@ class JwtServiceTest {
 
     @Test
     void invalidateToken_ShouldBlacklistAndRemoveToken() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
         jwtService.invalidateToken(token);
 
         verify(valueOperations).set(contains("jwt:blacklist:"), eq("true"), any());
         verify(redisTemplate).delete(contains("jwt:token:"));
-        verify(jwtTokenRepository).deleteToken(eq(userId), eq(token));
+        verify(jwtTokenRepository).deleteToken(eq(username), eq(token));
     }
 
     @Test
     void isTokenExpired_WithValidToken_ShouldReturnFalse() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
         boolean isExpired = jwtService.isTokenExpired(token);
 
@@ -144,27 +151,29 @@ class JwtServiceTest {
 
     @Test
     void generateRefreshToken_ShouldCreateValidToken() {
-        String userId = "user123";
+        Long userId = 123L;
+        String username = "user123";
 
-        String refreshToken = jwtService.generateRefreshToken(userId);
+        String refreshToken = jwtService.generateRefreshToken(userId, username);
 
         assertNotNull(refreshToken);
         assertFalse(refreshToken.isEmpty());
-        verify(valueOperations).set(anyString(), eq(userId), any());
+        verify(valueOperations).set(anyString(), eq(username), any());
         verify(jwtTokenRepository).saveToken(eq(userId), eq(refreshToken), any(Instant.class), eq("REFRESH"));
     }
 
     @Test
     void validateToken_WithDatabaseFallback_ShouldReturnTrue() {
-        String userId = "user123";
-        String token = jwtService.generateToken(userId);
+        Long userId = 123L;
+        String username = "user123";
+        String token = jwtService.generateToken(userId, username);
 
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(jwtTokenRepository.tokenExists(eq(userId), eq(token))).thenReturn(true);
+        when(jwtTokenRepository.tokenExists(eq(username), eq(token))).thenReturn(true);
 
         boolean isValid = jwtService.validateToken(token);
 
         assertTrue(isValid);
-        verify(valueOperations, times(2)).set(anyString(), eq(userId), any());
+        verify(valueOperations, times(2)).set(anyString(), eq(username), any());
     }
 }

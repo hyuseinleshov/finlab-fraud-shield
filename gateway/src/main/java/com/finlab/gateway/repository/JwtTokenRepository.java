@@ -24,7 +24,7 @@ public class JwtTokenRepository {
     }
 
     @Transactional
-    public void saveToken(String userId, String token, Instant expiresAt, String tokenType) {
+    public void saveToken(Long userId, String token, Instant expiresAt, String tokenType) {
         String sql = """
             INSERT INTO jwt_tokens (user_id, token, token_type, expires_at, created_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -32,7 +32,7 @@ public class JwtTokenRepository {
             SET expires_at = EXCLUDED.expires_at, token_type = EXCLUDED.token_type
             """;
 
-        int[] types = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP};
+        int[] types = {Types.BIGINT, Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP};
 
         jdbcTemplate.update(sql,
             new Object[]{userId, token, tokenType.toUpperCase(), Timestamp.from(expiresAt)},

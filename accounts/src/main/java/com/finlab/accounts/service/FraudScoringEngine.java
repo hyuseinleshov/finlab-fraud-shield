@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -52,7 +53,9 @@ public class FraudScoringEngine {
     private static final String REDIS_DUPLICATE_PREFIX = "fraud:duplicate:";
     private static final String REDIS_VELOCITY_IBAN_PREFIX = "fraud:velocity:iban:";
     private static final String REDIS_VELOCITY_VENDOR_PREFIX = "fraud:velocity:vendor:";
+    private static final String REDIS_RISKY_IBAN_PREFIX = "fraud:risky:iban:";
     private static final Duration DUPLICATE_WINDOW = Duration.ofHours(24);
+    private static final Duration RISKY_IBAN_CACHE_TTL = Duration.ofHours(4);
 
     private final IBANValidator ibanValidator;
     private final IBANRepository ibanRepository;
@@ -73,46 +76,81 @@ public class FraudScoringEngine {
 
     /**
      * Performs comprehensive fraud check on a transaction.
+     * Rules execute in parallel for improved performance.
      *
      * @param request fraud check request containing transaction details
      * @return fraud check response with decision, score, and risk factors
      */
     public FraudCheckResponse checkFraud(FraudCheckRequest request) {
+        long startTime = System.currentTimeMillis();
         log.info("Starting fraud check for invoice: {}", request.invoiceNumber());
+
+        CompletableFuture<RuleResult> duplicateCheck = CompletableFuture.supplyAsync(() ->
+            checkDuplicateInvoice(request.invoiceNumber())
+        );
+
+        CompletableFuture<RuleResult> ibanValidation = CompletableFuture.supplyAsync(() ->
+            checkIbanValid(request.iban())
+        );
+
+        CompletableFuture<RuleResult> riskyIbanCheck = CompletableFuture.supplyAsync(() ->
+            checkRiskyIban(request.iban())
+        );
+
+        CompletableFuture<RuleResult> amountCheck = CompletableFuture.supplyAsync(() ->
+            checkAmountManipulation(request.amount())
+        );
+
+        CompletableFuture<RuleResult> velocityCheck = CompletableFuture.supplyAsync(() ->
+            checkVelocityAnomaly(request.iban(), request.vendorId())
+        );
+
+        CompletableFuture<Void> allChecks = CompletableFuture.allOf(
+            duplicateCheck, ibanValidation, riskyIbanCheck, amountCheck, velocityCheck
+        );
 
         int totalScore = 0;
         List<String> riskFactors = new ArrayList<>();
 
-        if (isDuplicateInvoice(request.invoiceNumber())) {
-            totalScore += POINTS_DUPLICATE_INVOICE;
-            riskFactors.add("Duplicate invoice detected within 24 hours");
-            log.warn("Duplicate invoice detected: {}", request.invoiceNumber());
+        try {
+            allChecks.orTimeout(150, TimeUnit.MILLISECONDS).join();
+
+            RuleResult dup = duplicateCheck.getNow(null);
+            if (dup != null && dup.triggered()) {
+                totalScore += dup.points();
+                riskFactors.add(dup.message());
+            }
+
+            RuleResult iban = ibanValidation.getNow(null);
+            if (iban != null && iban.triggered()) {
+                totalScore += iban.points();
+                riskFactors.add(iban.message());
+            }
+
+            RuleResult risky = riskyIbanCheck.getNow(null);
+            if (risky != null && risky.triggered()) {
+                totalScore += risky.points();
+                riskFactors.add(risky.message());
+            }
+
+            RuleResult amount = amountCheck.getNow(null);
+            if (amount != null && amount.triggered()) {
+                totalScore += amount.points();
+                riskFactors.add(amount.message());
+            }
+
+            RuleResult velocity = velocityCheck.getNow(null);
+            if (velocity != null && velocity.triggered()) {
+                totalScore += velocity.points();
+                riskFactors.add(velocity.message());
+            }
+
+        } catch (Exception e) {
+            log.error("Error during parallel fraud check execution", e);
         }
 
-        IBANValidator.ValidationResult ibanValidation = ibanValidator.validate(request.iban());
-        if (!ibanValidation.isValid()) {
-            totalScore += POINTS_INVALID_IBAN;
-            riskFactors.add("Invalid IBAN: " + ibanValidation.errorMessage());
-            log.warn("Invalid IBAN detected for invoice {}: {}", request.invoiceNumber(), ibanValidation.errorMessage());
-        }
-
-        if (isRiskyIban(request.iban())) {
-            totalScore += POINTS_RISKY_IBAN;
-            riskFactors.add("IBAN flagged as high-risk in database");
-            log.warn("Risky IBAN detected for invoice {}", request.invoiceNumber());
-        }
-
-        if (isAmountManipulation(request.amount())) {
-            totalScore += POINTS_AMOUNT_MANIPULATION;
-            riskFactors.add("Amount suspiciously close to common threshold");
-            log.warn("Amount manipulation detected for invoice {}: {}", request.invoiceNumber(), request.amount());
-        }
-
-        if (isVelocityAnomaly(request.iban(), request.vendorId())) {
-            totalScore += POINTS_VELOCITY_ANOMALY;
-            riskFactors.add("Unusual transaction velocity detected");
-            log.warn("Velocity anomaly detected for invoice {}", request.invoiceNumber());
-        }
+        long processingTime = System.currentTimeMillis() - startTime;
+        log.info("Fraud check rules executed in {}ms", processingTime);
 
         FraudCheckResponse.FraudDecision decision = determineDecision(totalScore);
 
@@ -132,10 +170,76 @@ public class FraudScoringEngine {
             log.error("Failed to persist transaction, but fraud check completed", e);
         }
 
-        log.info("Fraud check completed for invoice {}: decision={}, score={}",
-            request.invoiceNumber(), decision, totalScore);
+        log.info("Fraud check completed for invoice {}: decision={}, score={}, totalTime={}ms",
+            request.invoiceNumber(), decision, totalScore, processingTime);
 
         return new FraudCheckResponse(decision, totalScore, riskFactors);
+    }
+
+    private RuleResult checkDuplicateInvoice(String invoiceNumber) {
+        try {
+            if (isDuplicateInvoice(invoiceNumber)) {
+                log.warn("Duplicate invoice detected: {}", invoiceNumber);
+                return new RuleResult(true, POINTS_DUPLICATE_INVOICE, "Duplicate invoice detected within 24 hours");
+            }
+            return RuleResult.noMatch();
+        } catch (Exception e) {
+            log.error("Error checking duplicate invoice", e);
+            return RuleResult.noMatch();
+        }
+    }
+
+    private RuleResult checkIbanValid(String iban) {
+        try {
+            IBANValidator.ValidationResult result = ibanValidator.validate(iban);
+            if (!result.isValid()) {
+                log.warn("Invalid IBAN detected: {}", result.errorMessage());
+                return new RuleResult(true, POINTS_INVALID_IBAN, "Invalid IBAN: " + result.errorMessage());
+            }
+            return RuleResult.noMatch();
+        } catch (Exception e) {
+            log.error("Error validating IBAN", e);
+            return RuleResult.noMatch();
+        }
+    }
+
+    private RuleResult checkRiskyIban(String iban) {
+        try {
+            if (isRiskyIban(iban)) {
+                log.warn("Risky IBAN detected");
+                return new RuleResult(true, POINTS_RISKY_IBAN, "IBAN flagged as high-risk in database");
+            }
+            return RuleResult.noMatch();
+        } catch (Exception e) {
+            log.error("Error checking risky IBAN", e);
+            return RuleResult.noMatch();
+        }
+    }
+
+    private RuleResult checkAmountManipulation(BigDecimal amount) {
+        try {
+            if (isAmountManipulation(amount)) {
+                log.warn("Amount manipulation detected: {}", amount);
+                return new RuleResult(true, POINTS_AMOUNT_MANIPULATION, "Amount suspiciously close to common threshold");
+            }
+            return RuleResult.noMatch();
+        } catch (Exception e) {
+            log.error("Error checking amount manipulation", e);
+            return RuleResult.noMatch();
+        }
+    }
+
+    private RuleResult checkVelocityAnomaly(String iban, Long vendorId) {
+        try {
+            if (isVelocityAnomaly(iban, vendorId)) {
+                log.warn("Velocity anomaly detected");
+                return new RuleResult(true, POINTS_VELOCITY_ANOMALY, "Unusual transaction velocity detected");
+            }
+            return RuleResult.noMatch();
+        } catch (Exception e) {
+            log.error("Error checking velocity anomaly", e);
+            return RuleResult.noMatch();
+        }
     }
 
     private boolean isDuplicateInvoice(String invoiceNumber) {
@@ -155,9 +259,22 @@ public class FraudScoringEngine {
 
     private boolean isRiskyIban(String iban) {
         try {
-            return ibanRepository.isRiskyIban(iban);
+            String cacheKey = REDIS_RISKY_IBAN_PREFIX + iban;
+            String cached = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cached != null) {
+                log.debug("Risky IBAN cache hit for IBAN");
+                return Boolean.parseBoolean(cached);
+            }
+
+            log.debug("Risky IBAN cache miss, querying database");
+            boolean isRisky = ibanRepository.isRiskyIban(iban);
+
+            redisTemplate.opsForValue().set(cacheKey, String.valueOf(isRisky), RISKY_IBAN_CACHE_TTL);
+
+            return isRisky;
         } catch (Exception e) {
-            log.error("Database error during risky IBAN check", e);
+            log.error("Error during risky IBAN check", e);
             return false;
         }
     }
@@ -249,6 +366,12 @@ public class FraudScoringEngine {
             return FraudCheckResponse.FraudDecision.REVIEW;
         } else {
             return FraudCheckResponse.FraudDecision.BLOCK;
+        }
+    }
+
+    private record RuleResult(boolean triggered, int points, String message) {
+        static RuleResult noMatch() {
+            return new RuleResult(false, 0, null);
         }
     }
 }

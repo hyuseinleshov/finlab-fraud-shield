@@ -44,6 +44,7 @@ class AuthServiceTest {
         String passwordHash = passwordEncoder.encode(password);
 
         User user = new User();
+        user.setId(123L);
         user.setUsername(username);
         user.setPasswordHash(passwordHash);
         user.setActive(true);
@@ -51,8 +52,8 @@ class AuthServiceTest {
         user.setFailedLoginAttempts(0);
 
         when(userRepository.findByUsername(username)).thenReturn(user);
-        when(jwtService.generateToken(username)).thenReturn("access-token");
-        when(jwtService.generateRefreshToken(username)).thenReturn("refresh-token");
+        when(jwtService.generateToken(123L, username)).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(123L, username)).thenReturn("refresh-token");
 
         LoginResponse response = authService.login(username, password, "127.0.0.1", "TestAgent");
 
@@ -176,16 +177,17 @@ class AuthServiceTest {
     @Test
     void refreshToken_WithValidRefreshToken_ShouldReturnNewAccessToken() {
         String refreshToken = "valid-refresh-token";
-        String userId = "testuser";
+        String username = "testuser";
 
         User user = new User();
-        user.setUsername(userId);
+        user.setId(123L);
+        user.setUsername(username);
         user.setActive(true);
 
         when(jwtService.validateToken(refreshToken)).thenReturn(true);
-        when(jwtService.extractUserId(refreshToken)).thenReturn(userId);
-        when(userRepository.findByUsername(userId)).thenReturn(user);
-        when(jwtService.generateToken(userId)).thenReturn("new-access-token");
+        when(jwtService.extractUserId(refreshToken)).thenReturn(username);
+        when(userRepository.findByUsername(username)).thenReturn(user);
+        when(jwtService.generateToken(123L, username)).thenReturn("new-access-token");
 
         LoginResponse response = authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent");
 
@@ -193,7 +195,7 @@ class AuthServiceTest {
         assertEquals("new-access-token", response.getAccessToken());
         assertEquals(refreshToken, response.getRefreshToken());
 
-        verify(auditLogRepository).logAuthEvent(eq(userId), eq("REFRESH_TOKEN"), anyString(), anyString(), anyMap());
+        verify(auditLogRepository).logAuthEvent(eq(username), eq("REFRESH_TOKEN"), anyString(), anyString(), anyMap());
     }
 
     @Test
@@ -206,26 +208,27 @@ class AuthServiceTest {
             authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent")
         );
 
-        verify(jwtService, never()).generateToken(anyString());
+        verify(jwtService, never()).generateToken(anyLong(), anyString());
     }
 
     @Test
     void refreshToken_WithInactiveUser_ShouldThrowAuthenticationException() {
         String refreshToken = "valid-refresh-token";
-        String userId = "testuser";
+        String username = "testuser";
 
         User user = new User();
-        user.setUsername(userId);
+        user.setId(123L);
+        user.setUsername(username);
         user.setActive(false);
 
         when(jwtService.validateToken(refreshToken)).thenReturn(true);
-        when(jwtService.extractUserId(refreshToken)).thenReturn(userId);
-        when(userRepository.findByUsername(userId)).thenReturn(user);
+        when(jwtService.extractUserId(refreshToken)).thenReturn(username);
+        when(userRepository.findByUsername(username)).thenReturn(user);
 
         assertThrows(AuthenticationException.class, () ->
             authService.refreshToken(refreshToken, "127.0.0.1", "TestAgent")
         );
 
-        verify(jwtService, never()).generateToken(anyString());
+        verify(jwtService, never()).generateToken(anyLong(), anyString());
     }
 }

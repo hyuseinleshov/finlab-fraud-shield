@@ -44,11 +44,18 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-ENV JAVA_OPTS="-XX:+UseContainerSupport \
-    -XX:MaxRAMPercentage=70.0 \
-    -XX:InitialRAMPercentage=50.0 \
+ENV JAVA_OPTS="-Xms512m \
+    -Xmx1024m \
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
     -XX:+UseG1GC \
     -XX:MaxGCPauseMillis=100 \
+    -XX:+UnlockExperimentalVMOptions \
+    -XX:G1NewSizePercent=30 \
+    -XX:G1MaxNewSizePercent=40 \
+    -XX:InitiatingHeapOccupancyPercent=45 \
+    -XX:+AlwaysPreTouch \
+    -XX:+ParallelRefProcEnabled \
     -XX:+UseStringDeduplication \
     -Djava.security.egd=file:/dev/./urandom \
     -Dspring.backgroundpreinitializer.ignore=true"
