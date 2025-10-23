@@ -81,12 +81,13 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
 
+        String tokenType = (String) claims.get("type");
         String redisKey = REDIS_TOKEN_PREFIX + token;
         redisTemplate.opsForValue().set(redisKey, subject, Duration.ofMillis(expirationMs));
-        jwtTokenRepository.saveToken(subject, token, expiration);
+        jwtTokenRepository.saveToken(subject, token, expiration, tokenType);
 
         log.debug("Generated {} token for user: {}, expires at: {}",
-                  claims.get("type"), subject, expiration);
+                  tokenType, subject, expiration);
 
         return token;
     }

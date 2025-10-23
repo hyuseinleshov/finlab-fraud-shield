@@ -7,12 +7,14 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 
 @Repository
+@Transactional(readOnly = true)
 public class UserRepository {
 
     private static final Logger log = LoggerFactory.getLogger(UserRepository.class);
@@ -75,6 +77,7 @@ public class UserRepository {
         }
     }
 
+    @Transactional
     public void updateLastLogin(String username) {
         String sql = """
             UPDATE users
@@ -92,6 +95,7 @@ public class UserRepository {
         log.debug("Updated last login for user: {}", username);
     }
 
+    @Transactional
     public void incrementFailedLoginAttempts(String username) {
         String sql = """
             UPDATE users
@@ -108,6 +112,7 @@ public class UserRepository {
         log.debug("Incremented failed login attempts for user: {}", username);
     }
 
+    @Transactional
     public void save(User user) {
         String sql = """
             INSERT INTO users (username, email, password_hash, full_name, is_active, is_locked, failed_login_attempts)

@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
@@ -17,8 +18,10 @@ import java.util.List;
 
 /**
  * Repository for transaction-related database operations using JdbcTemplate.
+ * All write operations are transactional to ensure data consistency.
  */
 @Repository
+@Transactional(readOnly = true)
 public class TransactionRepository {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionRepository.class);
@@ -29,6 +32,7 @@ public class TransactionRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Transactional
     public Long saveTransaction(
         String iban,
         BigDecimal amount,
@@ -38,24 +42,33 @@ public class TransactionRepository {
         FraudCheckResponse.FraudDecision decision,
         List<String> riskFactors
     ) {
+        String transactionId = generateTransactionId();
+
         String sql = """
-            INSERT INTO transactions (iban, amount, vendor_id, invoice_number, fraud_score, decision, risk_factors, created_at)
-            VALUES (?, ?, ?, ?, ?, ?::fraud_decision, ?::jsonb, ?)
+            INSERT INTO transactions (transaction_id, iban, amount, vendor_id, invoice_number, fraud_score, decision, risk_factors, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         try {
             jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, iban);
-                ps.setBigDecimal(2, amount);
-                ps.setLong(3, vendorId);
-                ps.setString(4, invoiceNumber);
-                ps.setInt(5, fraudScore);
-                ps.setString(6, decision.name());
-                ps.setString(7, toJsonArray(riskFactors));
-                ps.setTimestamp(8, Timestamp.from(Instant.now()));
+                PreparedStatement ps = connection.prepareStatement(sql, new String[]{"id"});  // Only return 'id' column
+                ps.setString(1, transactionId);
+                ps.setString(2, iban);
+                ps.setBigDecimal(3, amount);
+
+                if (vendorId != null) {
+                    ps.setLong(4, vendorId);
+                } else {
+                    ps.setNull(4, java.sql.Types.BIGINT);
+                }
+
+                ps.setString(5, invoiceNumber);
+                ps.setInt(6, fraudScore);
+                ps.setString(7, decision.name());
+                ps.setString(8, toJsonArray(riskFactors));
+                ps.setTimestamp(9, Timestamp.from(Instant.now()));
                 return ps;
             }, keyHolder);
 
@@ -65,6 +78,10 @@ public class TransactionRepository {
             log.error("Failed to save transaction", e);
             throw new RuntimeException("Failed to save transaction", e);
         }
+    }
+
+    private String generateTransactionId() {
+        return "TXN-" + System.currentTimeMillis() + "-" + String.format("%04d", (int)(Math.random() * 10000));
     }
 
     public int countTransactionsByIbanSince(String iban, Instant since) {

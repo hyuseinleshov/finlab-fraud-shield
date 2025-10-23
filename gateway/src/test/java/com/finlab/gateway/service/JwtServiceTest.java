@@ -54,7 +54,7 @@ class JwtServiceTest {
         assertNotNull(token);
         assertFalse(token.isEmpty());
         verify(valueOperations).set(anyString(), eq(userId), any());
-        verify(jwtTokenRepository).saveToken(eq(userId), eq(token), any(Instant.class));
+        verify(jwtTokenRepository).saveToken(eq(userId), eq(token), any(Instant.class), eq("ACCESS"));
     }
 
     @Test
@@ -151,7 +151,7 @@ class JwtServiceTest {
         assertNotNull(refreshToken);
         assertFalse(refreshToken.isEmpty());
         verify(valueOperations).set(anyString(), eq(userId), any());
-        verify(jwtTokenRepository).saveToken(eq(userId), eq(refreshToken), any(Instant.class));
+        verify(jwtTokenRepository).saveToken(eq(userId), eq(refreshToken), any(Instant.class), eq("REFRESH"));
     }
 
     @Test

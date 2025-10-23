@@ -33,7 +33,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     void saveToken_WithValidData_ShouldSaveSuccessfully() {
         Instant expiresAt = Instant.now().plusSeconds(900);
 
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM jwt_tokens WHERE token = ?",
@@ -49,8 +49,8 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
         Instant firstExpiry = Instant.now().plusSeconds(900);
         Instant secondExpiry = Instant.now().plusSeconds(1800);
 
-        jwtTokenRepository.saveToken(testUserId, testToken, firstExpiry);
-        jwtTokenRepository.saveToken(testUserId, testToken, secondExpiry);
+        jwtTokenRepository.saveToken(testUserId, testToken, firstExpiry, "ACCESS");
+        jwtTokenRepository.saveToken(testUserId, testToken, secondExpiry, "ACCESS");
 
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM jwt_tokens WHERE token = ?",
@@ -64,7 +64,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     @Test
     void tokenExists_WithValidToken_ShouldReturnTrue() {
         Instant expiresAt = Instant.now().plusSeconds(900);
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         boolean exists = jwtTokenRepository.tokenExists(testUserId, testToken);
 
@@ -74,7 +74,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     @Test
     void tokenExists_WithExpiredToken_ShouldReturnFalse() {
         Instant expiresAt = Instant.now().minusSeconds(100);
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         boolean exists = jwtTokenRepository.tokenExists(testUserId, testToken);
 
@@ -91,7 +91,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     @Test
     void tokenExists_WithWrongUserId_ShouldReturnFalse() {
         Instant expiresAt = Instant.now().plusSeconds(900);
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         boolean exists = jwtTokenRepository.tokenExists("wrong_user_id", testToken);
 
@@ -101,7 +101,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     @Test
     void deleteToken_ShouldRemoveToken() {
         Instant expiresAt = Instant.now().plusSeconds(900);
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         jwtTokenRepository.deleteToken(testUserId, testToken);
 
@@ -132,7 +132,7 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
     void saveToken_ShouldStoreUserIdAndExpiresAt() {
         Instant expiresAt = Instant.now().plusSeconds(900);
 
-        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, testToken, expiresAt, "ACCESS");
 
         String storedUserId = jdbcTemplate.queryForObject(
                 "SELECT user_id FROM jwt_tokens WHERE token = ?",
@@ -149,8 +149,8 @@ class JwtTokenRepositoryTest extends BaseIntegrationTest {
         String token2 = "token_2_" + System.currentTimeMillis();
         Instant expiresAt = Instant.now().plusSeconds(900);
 
-        jwtTokenRepository.saveToken(testUserId, token1, expiresAt);
-        jwtTokenRepository.saveToken(testUserId, token2, expiresAt);
+        jwtTokenRepository.saveToken(testUserId, token1, expiresAt, "ACCESS");
+        jwtTokenRepository.saveToken(testUserId, token2, expiresAt, "ACCESS");
 
         assertThat(jwtTokenRepository.tokenExists(testUserId, token1)).isTrue();
         assertThat(jwtTokenRepository.tokenExists(testUserId, token2)).isTrue();

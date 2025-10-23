@@ -22,10 +22,14 @@ public class IBANRepository {
     public boolean isRiskyIban(String iban) {
         try {
             String sql = "SELECT is_risky FROM ibans WHERE iban = ? LIMIT 1";
+
+            int[] types = {java.sql.Types.VARCHAR};
+
             Boolean isRisky = jdbcTemplate.queryForObject(
                 sql,
-                Boolean.class,
-                iban
+                new Object[]{iban},
+                types,
+                Boolean.class
             );
             return Boolean.TRUE.equals(isRisky);
         } catch (Exception e) {

@@ -1,33 +1,36 @@
--- V2__seed_ibans.sql
--- Generate 1 million VALID Bulgarian IBANs with MOD 97 check digits
-
--- Step 1: Create UNLOGGED temp table for fast bulk insert (no WAL overhead)
+-- UNLOGGED skips WAL for faster bulk insert (acceptable for seed data)
 CREATE UNLOGGED TABLE ibans_temp (
     iban VARCHAR(22),
     is_risky BOOLEAN
 );
 
--- Step 2: MOD 97 check digit calculation function (inline optimized)
 CREATE OR REPLACE FUNCTION calculate_bg_iban_check(
     bank_code VARCHAR(4),
     branch_code VARCHAR(4),
-    account_number VARCHAR(10)
+    account_type VARCHAR(2),
+    account_number VARCHAR(8)
 ) RETURNS VARCHAR(2) AS $$
 DECLARE
     iban_base TEXT;
     numeric_str TEXT;
     remainder INTEGER;
     check_digits INTEGER;
+    c CHAR(1);
 BEGIN
-    -- Rearrange: BANK + BRANCH + ACCOUNT + 'BG00'
-    iban_base := bank_code || branch_code || account_number || 'BG00';
+    iban_base := bank_code || branch_code || account_type || account_number || 'BG00';
 
-    -- Convert letters to numbers: B=11, G=16, etc.
-    numeric_str := TRANSLATE(iban_base,
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        '101112131415161718192021222324252627282930313233343536');
+    -- Character-by-character conversion needed (TRANSLATE has bug with multi-digit replacements)
+    numeric_str := '';
+    FOR i IN 1..LENGTH(iban_base) LOOP
+        c := SUBSTRING(iban_base FROM i FOR 1);
+        IF c BETWEEN 'A' AND 'Z' THEN
+            numeric_str := numeric_str || (ASCII(c) - ASCII('A') + 10)::TEXT;
+        ELSE
+            numeric_str := numeric_str || c;
+        END IF;
+    END LOOP;
 
-    -- Calculate MOD 97 using piece-wise approach (avoid NUMERIC overflow)
+    -- Piece-wise prevents NUMERIC overflow on long strings
     remainder := 0;
     FOR i IN 1..LENGTH(numeric_str) BY 7 LOOP
         remainder := ((remainder::TEXT || SUBSTRING(numeric_str FROM i FOR 7))::BIGINT % 97)::INTEGER;
@@ -38,7 +41,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Step 3: Generate 1M IBANs with progress tracking
 DO $$
 DECLARE
     batch_size INTEGER := 50000;
@@ -57,7 +59,6 @@ BEGIN
         batch_start := (current_batch - 1) * batch_size + 1;
         batch_end := current_batch * batch_size;
 
-        -- Batch insert for better performance
         INSERT INTO ibans_temp (iban, is_risky)
         SELECT
             'BG' ||
@@ -69,7 +70,8 @@ BEGIN
                     ELSE 'CREX'
                 END,
                 LPAD(((gs / 100) % 10000)::TEXT, 4, '0'),
-                LPAD((gs % 10000000000)::TEXT, 10, '0')
+                LPAD(((gs / 10) % 100)::TEXT, 2, '0'),
+                LPAD((gs % 100000000)::TEXT, 8, '0')
             ) ||
             CASE (gs % 10)
                 WHEN 0 THEN 'BANK' WHEN 1 THEN 'UNCR' WHEN 2 THEN 'STSA'
@@ -78,7 +80,8 @@ BEGIN
                 ELSE 'CREX'
             END ||
             LPAD(((gs / 100) % 10000)::TEXT, 4, '0') ||
-            LPAD((gs % 10000000000)::TEXT, 10, '0') AS iban,
+            LPAD(((gs / 10) % 100)::TEXT, 2, '0') ||
+            LPAD((gs % 100000000)::TEXT, 8, '0') AS iban,
             (gs % 100) < 10 AS is_risky
         FROM generate_series(batch_start, batch_end) AS gs;
 
@@ -89,7 +92,6 @@ BEGIN
     RAISE NOTICE '[IBAN] ✓ Generated 1,000,000 VALID Bulgarian IBANs';
 END $$;
 
--- Step 4: Convert to production table with proper schema
 CREATE TABLE ibans (
     id BIGSERIAL PRIMARY KEY,
     iban VARCHAR(22) NOT NULL,
@@ -98,27 +100,24 @@ CREATE TABLE ibans (
     CHECK (LENGTH(iban) = 22)
 );
 
--- Step 5: Copy data from temp to production table
 INSERT INTO ibans (iban, is_risky)
 SELECT iban, is_risky FROM ibans_temp;
 
--- Step 6: Create indexes AFTER data load (much faster)
+-- Create indexes after bulk insert for better performance
 CREATE UNIQUE INDEX idx_ibans_iban_unique ON ibans(iban);
 CREATE INDEX idx_ibans_risky ON ibans(iban) WHERE is_risky = TRUE;
 
--- Step 7: Cleanup
 DROP TABLE ibans_temp;
-DROP FUNCTION calculate_bg_iban_check(VARCHAR, VARCHAR, VARCHAR);
-
--- Step 8: Verify results
+DROP FUNCTION calculate_bg_iban_check(VARCHAR, VARCHAR, VARCHAR, VARCHAR);
 DO $$
 DECLARE
     total_count INTEGER;
     risky_count INTEGER;
     sample_iban VARCHAR(22);
-    sample_check VARCHAR(2);
     sample_base TEXT;
+    numeric_str TEXT;
     calculated_mod INTEGER;
+    c CHAR(1);
 BEGIN
     SELECT COUNT(*) INTO total_count FROM ibans;
     SELECT COUNT(*) INTO risky_count FROM ibans WHERE is_risky = TRUE;
@@ -127,15 +126,20 @@ BEGIN
         RAISE EXCEPTION 'Expected 1,000,000 IBANs but generated %', total_count;
     END IF;
 
-    -- Verify random IBAN passes MOD 97 validation
     SELECT iban INTO sample_iban FROM ibans ORDER BY random() LIMIT 1;
-    sample_check := SUBSTRING(sample_iban FROM 3 FOR 2);
-    sample_base := SUBSTRING(sample_iban FROM 5) || 'BG' || sample_check;
+    sample_base := SUBSTRING(sample_iban FROM 5) || SUBSTRING(sample_iban FROM 1 FOR 4);
 
-    -- Basic MOD 97 validation check
-    calculated_mod := (TRANSLATE(sample_base,
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        '101112131415161718192021222324252627282930313233343536')::NUMERIC % 97)::INTEGER;
+    numeric_str := '';
+    FOR i IN 1..LENGTH(sample_base) LOOP
+        c := SUBSTRING(sample_base FROM i FOR 1);
+        IF c BETWEEN 'A' AND 'Z' THEN
+            numeric_str := numeric_str || (ASCII(c) - ASCII('A') + 10)::TEXT;
+        ELSE
+            numeric_str := numeric_str || c;
+        END IF;
+    END LOOP;
+
+    calculated_mod := (numeric_str::NUMERIC % 97)::INTEGER;
 
     IF calculated_mod != 1 THEN
         RAISE WARNING 'Sample IBAN % failed MOD 97 validation (remainder: %)', sample_iban, calculated_mod;
