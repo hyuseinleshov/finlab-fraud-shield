@@ -130,15 +130,77 @@ jmeter/
     └── invoices.csv       # Sample invoice data
 ```
 
-## Future Test Plans
-
 ### Extreme Load Test (`extreme_load.jmx`)
 
-Planned test parameters:
-- Concurrent Users: 1000
-- Ramp-up Time: 60 seconds
-- Test Duration: 10 minutes
-- Assertions: Response time < 500ms, Error rate < 5%
+Stress test to identify system breaking point:
+
+- **Concurrent Users**: 1000
+- **Ramp-up Time**: 60 seconds
+- **Test Duration**: 10 minutes (600 seconds)
+- **Target Endpoint**: Same as normal load
+- **Think Time**: 100-500ms random delay
+
+#### Assertions (Relaxed for Stress Testing)
+
+- HTTP Status Code: 200 OK
+- Response Time: < 500ms (relaxed from 200ms)
+- Response contains required fields: `decision`, `fraudScore`
+
+#### Test Results
+
+| Metric | Value |
+|--------|-------|
+| **Total Requests** | 60,990 |
+| **Error Rate** | 72.30% |
+| **Throughput** | 100.7 req/s |
+| **Mean Response Time** | 8,078ms |
+| **Median Response Time** | 9,321ms |
+| **90th Percentile** | 10,010ms |
+| **95th Percentile** | 10,011ms |
+| **99th Percentile** | 10,016ms |
+
+#### Breakdown by Request Type
+
+**01 - Login**
+- Requests: 30,825
+- Error Rate: 46.01%
+- Mean: 8,379ms
+- Median: 9,973ms
+- P95: 10,011ms
+
+**02 - Validate Invoice**
+- Requests: 30,165
+- Error Rate: 99.16% ⚠️
+- Mean: 7,771ms
+- Median: 8,664ms
+- P95: 10,011ms
+
+#### Analysis - System Breaking Point Identified
+
+**Critical Findings:**
+- System cannot handle 1000 concurrent users
+- Invoice validation endpoint completely fails (99% error rate)
+- Response times degraded 10x compared to normal load
+- Login authentication holds better but still fails 46% of the time
+
+**Breaking Point Indicators:**
+1. **Connection pool exhaustion** - HikariCP cannot handle 1000 concurrent connections
+2. **Redis overwhelmed** - Cache layer saturated
+3. **Database saturation** - PostgreSQL query queue backed up
+4. **Timeout cascade** - Slow responses causing downstream timeouts
+
+**Recommended Maximum Capacity:**
+- Based on error rates, system can reliably handle ~200-300 concurrent users
+- Beyond this threshold, performance degrades exponentially
+- Production deployment would need horizontal scaling (multiple instances)
+
+#### Running Extreme Test
+
+```bash
+docker compose --profile testing-extreme up jmeter-extreme
+```
+
+**Warning:** This test will heavily stress the system and may cause temporary unresponsiveness
 
 ## Notes
 

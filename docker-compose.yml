@@ -131,7 +131,7 @@ services:
 
   jmeter:
     build: ./jmeter
-    container_name: finlab-jmeter
+    container_name: finlab-jmeter-normal
     volumes:
       - ./jmeter/test-plans:/test-plans
       - ./jmeter/test-data:/test-data
@@ -139,6 +139,20 @@ services:
     command: ["-n", "-t", "/test-plans/normal_load.jmx", "-l", "/results/normal_load_results/results.jtl", "-e", "-o", "/results/normal_load_results/html"]
     profiles:
       - testing
+    networks:
+      - finlab-network
+    restart: "no"
+
+  jmeter-extreme:
+    build: ./jmeter
+    container_name: finlab-jmeter-extreme
+    volumes:
+      - ./jmeter/test-plans:/test-plans
+      - ./jmeter/test-data:/test-data
+      - ./stress_tests:/results
+    command: ["-n", "-t", "/test-plans/extreme_load.jmx", "-l", "/results/extreme_load_results/results.jtl", "-e", "-o", "/results/extreme_load_results/html"]
+    profiles:
+      - testing-extreme
     networks:
       - finlab-network
     restart: "no"
