@@ -28,8 +28,36 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<testcontainers.version>1.20.4</testcontainers.version>
+		<testcontainers.version>1.21.3</testcontainers.version>
+		<!-- Security: CVE fixes via dependency version overrides -->
+		<logback.version>1.5.19</logback.version> <!-- CVE-2025-11226 -->
+		<commons-lang3.version>3.18.0</commons-lang3.version> <!-- CVE-2025-48924 -->
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<!-- Security: Override transitive dependencies to fix CVEs -->
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-core</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-compress</artifactId>
+				<version>1.27.1</version> <!-- CVE-2024-25710, CVE-2024-26308 -->
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-lang3</artifactId>
+				<version>${commons-lang3.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
