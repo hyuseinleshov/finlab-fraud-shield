@@ -65,16 +65,16 @@ open stress_tests/normal_load_results/html/index.html
 
 ### Latest Test Run (Normal Load)
 
-| Metric | Value |
-|--------|-------|
-| **Total Requests** | 26,823 |
-| **Error Rate** | 8.13% |
-| **Throughput** | 89.4 req/s |
-| **Mean Response Time** | 552ms |
-| **Median Response Time** | 279ms |
-| **90th Percentile** | 1,380ms |
-| **95th Percentile** | 1,592ms |
-| **99th Percentile** | 1,970ms |
+| Metric                   | Value      |
+|--------------------------|------------|
+| **Total Requests**       | 26,823     |
+| **Error Rate**           | 8.13%      |
+| **Throughput**           | 89.4 req/s |
+| **Mean Response Time**   | 552ms      |
+| **Median Response Time** | 279ms      |
+| **90th Percentile**      | 1,380ms    |
+| **95th Percentile**      | 1,592ms    |
+| **99th Percentile**      | 1,970ms    |
 
 ### Breakdown by Request Type
 
@@ -148,16 +148,16 @@ Stress test to identify system breaking point:
 
 #### Test Results
 
-| Metric | Value |
-|--------|-------|
-| **Total Requests** | 60,990 |
-| **Error Rate** | 72.30% |
-| **Throughput** | 100.7 req/s |
-| **Mean Response Time** | 8,078ms |
-| **Median Response Time** | 9,321ms |
-| **90th Percentile** | 10,010ms |
-| **95th Percentile** | 10,011ms |
-| **99th Percentile** | 10,016ms |
+| Metric                   | Value       |
+|--------------------------|-------------|
+| **Total Requests**       | 60,990      |
+| **Error Rate**           | 72.30%      |
+| **Throughput**           | 100.7 req/s |
+| **Mean Response Time**   | 8,078ms     |
+| **Median Response Time** | 9,321ms     |
+| **90th Percentile**      | 10,010ms    |
+| **95th Percentile**      | 10,011ms    |
+| **99th Percentile**      | 10,016ms    |
 
 #### Breakdown by Request Type
 

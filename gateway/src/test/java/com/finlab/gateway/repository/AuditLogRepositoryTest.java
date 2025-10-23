@@ -1,6 +1,6 @@
 package com.finlab.gateway.repository;
 
-import com.finlab.gateway.AbstractIntegrationTest;
+import com.finlab.gateway.config.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,7 +10,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class AuditLogRepositoryTest extends AbstractIntegrationTest {
+class AuditLogRepositoryTest extends BaseIntegrationTest {
 
     @Autowired
     private AuditLogRepository auditLogRepository;

@@ -1,13 +1,13 @@
 package com.finlab.gateway.repository;
 
-import com.finlab.gateway.AbstractIntegrationTest;
+import com.finlab.gateway.config.BaseIntegrationTest;
 import com.finlab.gateway.model.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class UserRepositoryTest extends AbstractIntegrationTest {
+class UserRepositoryTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
@@ -59,7 +59,6 @@ class UserRepositoryTest extends AbstractIntegrationTest {
     void updateLastLogin_ShouldUpdateTimestamp() {
         // Arrange
         String username = "testuser";
-        User userBefore = userRepository.findByUsername(username);
 
         // Act
         userRepository.updateLastLogin(username);

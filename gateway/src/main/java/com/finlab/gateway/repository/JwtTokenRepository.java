@@ -68,17 +68,4 @@ public class JwtTokenRepository {
 
         log.debug("Deleted {} token(s) for user: {}", deleted, userId);
     }
-
-    /**
-     * Cleanup expired tokens to prevent table bloat.
-     * Should be called periodically (e.g., daily cron job).
-     */
-    public int deleteExpiredTokens() {
-        String sql = "DELETE FROM jwt_tokens WHERE expires_at < CURRENT_TIMESTAMP";
-
-        int deleted = jdbcTemplate.update(sql);
-        log.info("Deleted {} expired tokens", deleted);
-
-        return deleted;
-    }
 }

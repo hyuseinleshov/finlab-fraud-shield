@@ -51,8 +51,10 @@ public class AccountsServiceClient {
                     .retrieve()
                     .body(FraudCheckResponse.class);
 
-            logger.info("Fraud validation completed: decision={}, score={}, riskFactors={}",
-                    response.decision(), response.fraudScore(), response.riskFactors());
+            if (response != null) {
+                logger.info("Fraud validation completed: decision={}, score={}, riskFactors={}",
+                        response.decision(), response.fraudScore(), response.riskFactors());
+            }
 
             return response;
         } catch (Exception e) {

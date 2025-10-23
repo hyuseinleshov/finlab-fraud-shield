@@ -15,12 +15,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for ApiKeyAuthenticationFilter.
- *
+ * <p>
  * Tests validation of X-API-KEY header for service-to-service authentication.
  */
 @ExtendWith(MockitoExtension.class)

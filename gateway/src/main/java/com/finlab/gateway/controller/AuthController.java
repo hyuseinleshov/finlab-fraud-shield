@@ -62,8 +62,10 @@ public class AuthController {
 
         if (token == null) {
             log.warn("Logout request without token, IP: {}", ipAddress);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(createErrorResponse("Authorization header is required"));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Authorization header is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
 
         authService.logout(token, ipAddress, userAgent);
@@ -135,15 +137,5 @@ public class AuthController {
     private String extractUserAgent(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
         return userAgent != null ? userAgent : "unknown";
-    }
-
-    /**
-     * Creates error response map.
-     */
-    private Map<String, Object> createErrorResponse(String message) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "error");
-        response.put("message", message);
-        return response;
     }
 }

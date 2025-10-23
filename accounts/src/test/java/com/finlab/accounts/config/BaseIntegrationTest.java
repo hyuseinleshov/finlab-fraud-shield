@@ -1,4 +1,4 @@
-package com.finlab.gateway;
+package com.finlab.accounts.config;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -17,7 +17,7 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-public abstract class AbstractIntegrationTest {
+public abstract class BaseIntegrationTest {
 
     // Singleton containers - shared across all test classes
     private static final PostgreSQLContainer<?> postgres;
@@ -49,5 +49,8 @@ public abstract class AbstractIntegrationTest {
 
         // Flyway configuration - use shared migrations from project root
         registry.add("spring.flyway.locations", () -> "filesystem:../database/migration");
+
+        // API Key for testing
+        registry.add("security.api-key", () -> "test-api-key-12345");
     }
 }

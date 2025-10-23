@@ -37,20 +37,6 @@ public class IBANRepository {
         }
     }
 
-    /**
-     * Check if an IBAN exists in the database.
-     */
-    public boolean exists(String iban) {
-        try {
-            String sql = "SELECT COUNT(*) FROM ibans WHERE iban = ?";
-            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, iban);
-            return count != null && count > 0;
-        } catch (Exception e) {
-            log.error("Error checking IBAN existence", e);
-            return false;
-        }
-    }
-
     private String maskIban(String iban) {
         if (iban == null || iban.length() <= 8) {
             return "****";

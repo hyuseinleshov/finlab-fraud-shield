@@ -1,7 +1,7 @@
 package com.finlab.gateway.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.finlab.gateway.AbstractIntegrationTest;
+import com.finlab.gateway.config.BaseIntegrationTest;
 import com.finlab.gateway.dto.LoginRequest;
 import com.finlab.gateway.dto.LoginResponse;
 import com.finlab.gateway.dto.RefreshRequest;
@@ -14,15 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
-class AuthControllerTest extends AbstractIntegrationTest {
+class AuthControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
