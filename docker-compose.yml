@@ -134,6 +134,7 @@ services:
     container_name: finlab-jmeter
     volumes:
       - ./jmeter/test-plans:/test-plans
+      - ./jmeter/test-data:/test-data
       - ./stress_tests:/results
     command: ["-n", "-t", "/test-plans/normal_load.jmx", "-l", "/results/normal_load_results/results.jtl", "-e", "-o", "/results/normal_load_results/html"]
     profiles:
