@@ -21,6 +21,29 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class FraudScoringEngineTest {
 
+    // Fraud scoring constants (must match FraudScoringEngine implementation)
+    private static final int POINTS_DUPLICATE_INVOICE = 50;
+    private static final int POINTS_INVALID_IBAN = 50;
+    private static final int POINTS_RISKY_IBAN = 40;
+    private static final int POINTS_AMOUNT_MANIPULATION = 30;
+    private static final int POINTS_VELOCITY_ANOMALY = 15;
+
+    // Decision thresholds
+    private static final int ALLOW_THRESHOLD = 30;
+    private static final int REVIEW_THRESHOLD = 70;
+
+    // Test data constants
+    private static final String VALID_BULGARIAN_IBAN = "BG80BNBG96611020345678";
+    private static final String INVALID_IBAN = "BG99INVALID00000000000";
+    private static final BigDecimal NORMAL_AMOUNT = new BigDecimal("1500.00");
+    private static final BigDecimal THRESHOLD_MANIPULATION_AMOUNT = new BigDecimal("4990.00");
+    private static final Long TEST_VENDOR_ID = 1L;
+    private static final String TEST_INVOICE_PREFIX = "INV-";
+
+    // Velocity thresholds
+    private static final long VELOCITY_NO_ANOMALY = 0L;
+    private static final long VELOCITY_THRESHOLD_EXCEEDED = 6L;
+
     @Mock
     private IBANValidator ibanValidator;
 
@@ -57,16 +80,16 @@ class FraudScoringEngineTest {
     @Test
     void checkFraud_WithValidTransaction_ShouldReturnAllow() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-001"
+            VALID_BULGARIAN_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "001"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
@@ -78,21 +101,22 @@ class FraudScoringEngineTest {
     @Test
     void checkFraud_WithDuplicateInvoice_ShouldAddFiftyPoints() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-DUPLICATE"
+            VALID_BULGARIAN_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "DUPLICATE"
         );
 
+        // Simulate duplicate invoice (setIfAbsent returns false)
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(false);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
-        assertEquals(50, response.fraudScore());
+        assertEquals(POINTS_DUPLICATE_INVOICE, response.fraudScore());
         assertTrue(response.riskFactors().stream()
             .anyMatch(f -> f.contains("Duplicate invoice")));
     }
@@ -100,22 +124,22 @@ class FraudScoringEngineTest {
     @Test
     void checkFraud_WithInvalidIban_ShouldAddFiftyPoints() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG99INVALID00000000000",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-002"
+            INVALID_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "002"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString()))
             .thenReturn(IBANValidator.ValidationResult.invalid("Invalid IBAN checksum"));
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
-        assertEquals(50, response.fraudScore());
+        assertEquals(POINTS_INVALID_IBAN, response.fraudScore());
         assertTrue(response.riskFactors().stream()
             .anyMatch(f -> f.contains("Invalid IBAN")));
     }
@@ -123,44 +147,44 @@ class FraudScoringEngineTest {
     @Test
     void checkFraud_WithRiskyIban_ShouldAddFortyPoints() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-003"
+            VALID_BULGARIAN_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "003"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(true);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.REVIEW, response.decision());
-        assertEquals(40, response.fraudScore());
+        assertEquals(POINTS_RISKY_IBAN, response.fraudScore());
         assertTrue(response.riskFactors().stream()
             .anyMatch(f -> f.contains("high-risk")));
     }
 
     @Test
     void checkFraud_WithAmountManipulation_ShouldAddThirtyPoints() {
-        // Amount just below 5000 threshold
+        // Amount just below 5000 threshold (4990 is within 50 of 4999 threshold)
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("4990.00"),
-            1L,
-            "INV-004"
+            VALID_BULGARIAN_IBAN,
+            THRESHOLD_MANIPULATION_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "004"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
-        assertEquals(30, response.fraudScore());
+        assertEquals(POINTS_AMOUNT_MANIPULATION, response.fraudScore());
         assertTrue(response.riskFactors().stream()
             .anyMatch(f -> f.contains("threshold")));
     }
@@ -168,82 +192,85 @@ class FraudScoringEngineTest {
     @Test
     void checkFraud_WithVelocityAnomaly_ShouldAddFifteenPoints() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-005"
+            VALID_BULGARIAN_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "005"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(6L);
+        // 6 transactions exceeds the threshold of 5
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_THRESHOLD_EXCEEDED);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
-        assertEquals(15, response.fraudScore());
+        assertEquals(POINTS_VELOCITY_ANOMALY, response.fraudScore());
         assertTrue(response.riskFactors().stream()
             .anyMatch(f -> f.contains("velocity")));
     }
 
     @Test
     void checkFraud_WithMultipleRiskFactors_ShouldBlockTransaction() {
-        // Duplicate + invalid IBAN = 100 points
+        // Duplicate invoice (50) + invalid IBAN (50) = 100 points (BLOCK)
+        int expectedScore = POINTS_DUPLICATE_INVOICE + POINTS_INVALID_IBAN;
+
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG99INVALID00000000000",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-BLOCKED"
+            INVALID_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "BLOCKED"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(false);
         when(ibanValidator.validate(anyString()))
             .thenReturn(IBANValidator.ValidationResult.invalid("Invalid checksum"));
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.BLOCK, response.decision());
-        assertEquals(100, response.fraudScore());
+        assertEquals(expectedScore, response.fraudScore());
         assertEquals(2, response.riskFactors().size());
     }
 
     @Test
     void checkFraud_WithScoreAtBoundary_ShouldReturnCorrectDecision() {
-        // Exactly 30 points (ALLOW boundary)
+        // Exactly at ALLOW threshold (30 points from amount manipulation)
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("4990.00"),
-            1L,
-            "INV-006"
+            VALID_BULGARIAN_IBAN,
+            THRESHOLD_MANIPULATION_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "006"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
 
         FraudCheckResponse response = fraudScoringEngine.checkFraud(request);
 
         assertEquals(FraudCheckResponse.FraudDecision.ALLOW, response.decision());
-        assertEquals(30, response.fraudScore());
+        assertEquals(ALLOW_THRESHOLD, response.fraudScore());
     }
 
     @Test
     void checkFraud_ShouldRecordTransactionInDatabase() {
         FraudCheckRequest request = new FraudCheckRequest(
-            "BG80BNBG96611020345678",
-            new BigDecimal("1500.00"),
-            1L,
-            "INV-007"
+            VALID_BULGARIAN_IBAN,
+            NORMAL_AMOUNT,
+            TEST_VENDOR_ID,
+            TEST_INVOICE_PREFIX + "007"
         );
 
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
         when(ibanValidator.validate(anyString())).thenReturn(IBANValidator.ValidationResult.valid());
         when(ibanRepository.isRiskyIban(anyString())).thenReturn(false);
-        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.count(anyString(), anyDouble(), anyDouble())).thenReturn(VELOCITY_NO_ANOMALY);
         when(transactionRepository.saveTransaction(any(), any(), any(), any(), anyInt(), any(), any()))
             .thenReturn(1L);
 

@@ -29,6 +29,48 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class InvoiceProxyControllerTest {
 
+    // Test data constants
+    private static final String VALID_BULGARIAN_IBAN = "BG80BNBG96611020345678";
+    private static final BigDecimal NORMAL_AMOUNT = new BigDecimal("1500.00");
+    private static final Long TEST_VENDOR_ID = 1L;
+    private static final String INVOICE_NORMAL = "INV-2025-001";
+
+    // Test user/auth constants
+    private static final String TEST_USERNAME = "testuser";
+
+    // Network constants
+    private static final String IP_REMOTE_ADDR = "192.168.1.100";
+    private static final String IP_X_FORWARDED_FOR_SINGLE = "203.0.113.195";
+    private static final String IP_X_FORWARDED_FOR_MULTIPLE = "203.0.113.195, 198.51.100.178";
+    private static final String IP_X_REAL_IP = "203.0.113.42";
+    private static final String IP_FALLBACK = "10.0.0.5";
+    private static final String USER_AGENT_MOZILLA = "Mozilla/5.0";
+    private static final String USER_AGENT_UNKNOWN = "unknown";
+
+    // HTTP headers
+    private static final String HEADER_USER_AGENT = "User-Agent";
+    private static final String HEADER_X_FORWARDED_FOR = "X-Forwarded-For";
+    private static final String HEADER_X_REAL_IP = "X-Real-IP";
+
+    // Fraud scores
+    private static final int SCORE_LOW_RISK = 15;
+    private static final int SCORE_MEDIUM_RISK = 45;
+    private static final int SCORE_HIGH_RISK = 85;
+
+    // HTTP status codes
+    private static final int HTTP_OK = 200;
+
+    // Risk factor messages
+    private static final String RISK_LOW = "Low risk transaction";
+    private static final String RISK_DUPLICATE_INVOICE = "Duplicate invoice detected";
+    private static final String RISK_INVALID_IBAN = "Invalid IBAN";
+    private static final String RISK_AMOUNT_THRESHOLD = "Amount near threshold";
+
+    // Audit detail keys
+    private static final String DETAIL_KEY_IBAN = "iban";
+    private static final String DETAIL_KEY_AMOUNT = "amount";
+    private static final String DETAIL_KEY_VENDOR_ID = "vendorId";
+
     @Mock
     private AccountsServiceClient accountsServiceClient;
 
@@ -50,23 +92,23 @@ class InvoiceProxyControllerTest {
     @BeforeEach
     void setUp() {
         validRequest = new FraudCheckRequest(
-                "BG80BNBG96611020345678",
-                new BigDecimal("1500.00"),
-                1L,
-                "INV-2025-001"
+                VALID_BULGARIAN_IBAN,
+                NORMAL_AMOUNT,
+                TEST_VENDOR_ID,
+                INVOICE_NORMAL
         );
 
         mockResponse = new FraudCheckResponse(
                 FraudCheckResponse.FraudDecision.ALLOW,
-                15,
-                List.of("Low risk transaction")
+                SCORE_LOW_RISK,
+                List.of(RISK_LOW)
         );
 
-        when(authentication.getName()).thenReturn("testuser");
-        when(httpServletRequest.getRemoteAddr()).thenReturn("192.168.1.100");
-        when(httpServletRequest.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
-        when(httpServletRequest.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(httpServletRequest.getHeader("X-Real-IP")).thenReturn(null);
+        when(authentication.getName()).thenReturn(TEST_USERNAME);
+        when(httpServletRequest.getRemoteAddr()).thenReturn(IP_REMOTE_ADDR);
+        when(httpServletRequest.getHeader(HEADER_USER_AGENT)).thenReturn(USER_AGENT_MOZILLA);
+        when(httpServletRequest.getHeader(HEADER_X_FORWARDED_FOR)).thenReturn(null);
+        when(httpServletRequest.getHeader(HEADER_X_REAL_IP)).thenReturn(null);
     }
 
     @Test
@@ -78,15 +120,15 @@ class InvoiceProxyControllerTest {
                 validRequest, authentication, httpServletRequest
         );
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getStatusCodeValue()).isEqualTo(HTTP_OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().decision()).isEqualTo(FraudCheckResponse.FraudDecision.ALLOW);
-        assertThat(response.getBody().fraudScore()).isEqualTo(15);
+        assertThat(response.getBody().fraudScore()).isEqualTo(SCORE_LOW_RISK);
 
         verify(accountsServiceClient, times(1)).validateInvoice(validRequest);
         verify(auditLogRepository, times(1)).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
                 anyString(),
                 anyString(),
                 anyMap()
@@ -97,8 +139,8 @@ class InvoiceProxyControllerTest {
     void validateInvoice_WithHighRiskInvoice_ShouldReturnBlockDecision() {
         FraudCheckResponse blockResponse = new FraudCheckResponse(
                 FraudCheckResponse.FraudDecision.BLOCK,
-                85,
-                List.of("Duplicate invoice detected", "Invalid IBAN")
+                SCORE_HIGH_RISK,
+                List.of(RISK_DUPLICATE_INVOICE, RISK_INVALID_IBAN)
         );
 
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
@@ -108,26 +150,26 @@ class InvoiceProxyControllerTest {
                 validRequest, authentication, httpServletRequest
         );
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getStatusCodeValue()).isEqualTo(HTTP_OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().decision()).isEqualTo(FraudCheckResponse.FraudDecision.BLOCK);
-        assertThat(response.getBody().fraudScore()).isEqualTo(85);
+        assertThat(response.getBody().fraudScore()).isEqualTo(SCORE_HIGH_RISK);
         assertThat(response.getBody().riskFactors()).hasSize(2);
     }
 
     @Test
     void validateInvoice_ShouldExtractIpFromXForwardedForHeader() {
-        when(httpServletRequest.getHeader("X-Forwarded-For"))
-                .thenReturn("203.0.113.195, 198.51.100.178");
+        when(httpServletRequest.getHeader(HEADER_X_FORWARDED_FOR))
+                .thenReturn(IP_X_FORWARDED_FOR_MULTIPLE);
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
                 .thenReturn(mockResponse);
 
         invoiceProxyController.validateInvoice(validRequest, authentication, httpServletRequest);
 
         verify(auditLogRepository).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
-                eq("203.0.113.195"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
+                eq(IP_X_FORWARDED_FOR_SINGLE),
                 anyString(),
                 anyMap()
         );
@@ -135,17 +177,17 @@ class InvoiceProxyControllerTest {
 
     @Test
     void validateInvoice_ShouldExtractIpFromXRealIpHeader() {
-        when(httpServletRequest.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(httpServletRequest.getHeader("X-Real-IP")).thenReturn("203.0.113.42");
+        when(httpServletRequest.getHeader(HEADER_X_FORWARDED_FOR)).thenReturn(null);
+        when(httpServletRequest.getHeader(HEADER_X_REAL_IP)).thenReturn(IP_X_REAL_IP);
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
                 .thenReturn(mockResponse);
 
         invoiceProxyController.validateInvoice(validRequest, authentication, httpServletRequest);
 
         verify(auditLogRepository).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
-                eq("203.0.113.42"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
+                eq(IP_X_REAL_IP),
                 anyString(),
                 anyMap()
         );
@@ -153,18 +195,18 @@ class InvoiceProxyControllerTest {
 
     @Test
     void validateInvoice_ShouldFallbackToRemoteAddrWhenNoProxyHeaders() {
-        when(httpServletRequest.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(httpServletRequest.getHeader("X-Real-IP")).thenReturn(null);
-        when(httpServletRequest.getRemoteAddr()).thenReturn("10.0.0.5");
+        when(httpServletRequest.getHeader(HEADER_X_FORWARDED_FOR)).thenReturn(null);
+        when(httpServletRequest.getHeader(HEADER_X_REAL_IP)).thenReturn(null);
+        when(httpServletRequest.getRemoteAddr()).thenReturn(IP_FALLBACK);
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
                 .thenReturn(mockResponse);
 
         invoiceProxyController.validateInvoice(validRequest, authentication, httpServletRequest);
 
         verify(auditLogRepository).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
-                eq("10.0.0.5"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
+                eq(IP_FALLBACK),
                 anyString(),
                 anyMap()
         );
@@ -172,17 +214,17 @@ class InvoiceProxyControllerTest {
 
     @Test
     void validateInvoice_ShouldHandleMissingUserAgent() {
-        when(httpServletRequest.getHeader("User-Agent")).thenReturn(null);
+        when(httpServletRequest.getHeader(HEADER_USER_AGENT)).thenReturn(null);
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
                 .thenReturn(mockResponse);
 
         invoiceProxyController.validateInvoice(validRequest, authentication, httpServletRequest);
 
         verify(auditLogRepository).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
                 anyString(),
-                eq("Unknown"),
+                eq(USER_AGENT_UNKNOWN),
                 anyMap()
         );
     }
@@ -195,17 +237,17 @@ class InvoiceProxyControllerTest {
         invoiceProxyController.validateInvoice(validRequest, authentication, httpServletRequest);
 
         verify(auditLogRepository).logInvoiceValidation(
-                eq("testuser"),
-                eq("INV-2025-001"),
+                eq(TEST_USERNAME),
+                eq(INVOICE_NORMAL),
                 anyString(),
                 anyString(),
                 argThat((Map<String, Object> details) ->
-                        details.containsKey("iban") &&
-                        details.containsKey("amount") &&
-                        details.containsKey("vendorId") &&
-                        details.get("iban").equals("BG80BNBG96611020345678") &&
-                        details.get("amount").equals("1500.00") &&
-                        details.get("vendorId").equals(1L)
+                        details.containsKey(DETAIL_KEY_IBAN) &&
+                        details.containsKey(DETAIL_KEY_AMOUNT) &&
+                        details.containsKey(DETAIL_KEY_VENDOR_ID) &&
+                        details.get(DETAIL_KEY_IBAN).equals(VALID_BULGARIAN_IBAN) &&
+                        details.get(DETAIL_KEY_AMOUNT).equals(NORMAL_AMOUNT.toString()) &&
+                        details.get(DETAIL_KEY_VENDOR_ID).equals(TEST_VENDOR_ID)
                 )
         );
     }
@@ -214,8 +256,8 @@ class InvoiceProxyControllerTest {
     void validateInvoice_WithReviewDecision_ShouldReturnCorrectResponse() {
         FraudCheckResponse reviewResponse = new FraudCheckResponse(
                 FraudCheckResponse.FraudDecision.REVIEW,
-                45,
-                List.of("Amount near threshold")
+                SCORE_MEDIUM_RISK,
+                List.of(RISK_AMOUNT_THRESHOLD)
         );
 
         when(accountsServiceClient.validateInvoice(any(FraudCheckRequest.class)))
@@ -227,6 +269,6 @@ class InvoiceProxyControllerTest {
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().decision()).isEqualTo(FraudCheckResponse.FraudDecision.REVIEW);
-        assertThat(response.getBody().fraudScore()).isEqualTo(45);
+        assertThat(response.getBody().fraudScore()).isEqualTo(SCORE_MEDIUM_RISK);
     }
 }

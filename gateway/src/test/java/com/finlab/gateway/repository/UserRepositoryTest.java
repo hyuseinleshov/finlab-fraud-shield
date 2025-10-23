@@ -9,16 +9,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UserRepositoryTest extends BaseIntegrationTest {
 
+    // Test user data constants
+    private static final String TEST_USERNAME = "testuser";
+    private static final String TEST_EMAIL = "test@finlab.bg";
+    private static final String NONEXISTENT_USERNAME = "nonexistent";
+    private static final String NONEXISTENT_EMAIL = "nonexistent@finlab.bg";
+
+    // Expected values
+    private static final int ZERO_FAILED_ATTEMPTS = 0;
+    private static final int INCREMENT_BY_ONE = 1;
+
     @Autowired
     private UserRepository userRepository;
 
     @Test
     void findByUsername_WithExistingUser_ShouldReturnUser() {
-        User user = userRepository.findByUsername("testuser");
+        User user = userRepository.findByUsername(TEST_USERNAME);
 
         assertNotNull(user);
-        assertEquals("testuser", user.getUsername());
-        assertEquals("test@finlab.bg", user.getEmail());
+        assertEquals(TEST_USERNAME, user.getUsername());
+        assertEquals(TEST_EMAIL, user.getEmail());
         assertNotNull(user.getPasswordHash());
         assertTrue(user.isActive());
         assertFalse(user.isLocked());
@@ -26,50 +36,45 @@ class UserRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void findByUsername_WithNonExistentUser_ShouldReturnNull() {
-        User user = userRepository.findByUsername("nonexistent");
+        User user = userRepository.findByUsername(NONEXISTENT_USERNAME);
 
         assertNull(user);
     }
 
     @Test
     void findByEmail_WithExistingEmail_ShouldReturnUser() {
-        User user = userRepository.findByEmail("test@finlab.bg");
+        User user = userRepository.findByEmail(TEST_EMAIL);
 
         assertNotNull(user);
-        assertEquals("testuser", user.getUsername());
-        assertEquals("test@finlab.bg", user.getEmail());
+        assertEquals(TEST_USERNAME, user.getUsername());
+        assertEquals(TEST_EMAIL, user.getEmail());
     }
 
     @Test
     void findByEmail_WithNonExistentEmail_ShouldReturnNull() {
-        User user = userRepository.findByEmail("nonexistent@finlab.bg");
+        User user = userRepository.findByEmail(NONEXISTENT_EMAIL);
 
         assertNull(user);
     }
 
     @Test
     void updateLastLogin_ShouldUpdateTimestamp() {
-        String username = "testuser";
+        userRepository.updateLastLogin(TEST_USERNAME);
 
-        userRepository.updateLastLogin(username);
-
-        User userAfter = userRepository.findByUsername(username);
+        User userAfter = userRepository.findByUsername(TEST_USERNAME);
         assertNotNull(userAfter);
-        // Last login should be updated (or at least not null)
-        // Failed login attempts should be reset to 0
-        assertEquals(0, userAfter.getFailedLoginAttempts());
+        assertEquals(ZERO_FAILED_ATTEMPTS, userAfter.getFailedLoginAttempts());
     }
 
     @Test
     void incrementFailedLoginAttempts_ShouldIncreaseCounter() {
-        String username = "testuser";
-        User userBefore = userRepository.findByUsername(username);
+        User userBefore = userRepository.findByUsername(TEST_USERNAME);
         int attemptsBefore = userBefore.getFailedLoginAttempts();
 
-        userRepository.incrementFailedLoginAttempts(username);
+        userRepository.incrementFailedLoginAttempts(TEST_USERNAME);
 
-        User userAfter = userRepository.findByUsername(username);
+        User userAfter = userRepository.findByUsername(TEST_USERNAME);
         assertNotNull(userAfter);
-        assertEquals(attemptsBefore + 1, userAfter.getFailedLoginAttempts());
+        assertEquals(attemptsBefore + INCREMENT_BY_ONE, userAfter.getFailedLoginAttempts());
     }
 }

@@ -25,6 +25,21 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ApiKeyAuthenticationFilterTest {
 
+    // API key constants
+    private static final String VALID_API_KEY = "test-api-key-12345";
+    private static final String INVALID_API_KEY = "wrong-api-key";
+    private static final String API_KEY_HEADER = "X-API-KEY";
+
+    // Endpoint constants
+    private static final String INVOICE_VALIDATE_ENDPOINT = "/api/v1/invoices/validate";
+    private static final String HEALTH_ENDPOINT = "/actuator/health";
+
+    // Content type
+    private static final String CONTENT_TYPE_JSON = "application/json";
+
+    // Test whitespace
+    private static final String WHITESPACE_ONLY = "   ";
+
     private ApiKeyAuthenticationFilter filter;
 
     @Mock
@@ -36,10 +51,6 @@ class ApiKeyAuthenticationFilterTest {
     @Mock
     private FilterChain filterChain;
 
-    private static final String VALID_API_KEY = "test-api-key-12345";
-    private static final String INVALID_API_KEY = "wrong-api-key";
-    private static final String API_KEY_HEADER = "X-API-KEY";
-
     @BeforeEach
     void setUp() {
         filter = new ApiKeyAuthenticationFilter();
@@ -48,7 +59,7 @@ class ApiKeyAuthenticationFilterTest {
 
     @Test
     void doFilterInternal_WithValidApiKey_ShouldProceed() throws ServletException, IOException {
-        when(request.getRequestURI()).thenReturn("/api/v1/invoices/validate");
+        when(request.getRequestURI()).thenReturn(INVOICE_VALIDATE_ENDPOINT);
         when(request.getHeader(API_KEY_HEADER)).thenReturn(VALID_API_KEY);
 
         filter.doFilterInternal(request, response, filterChain);
@@ -62,14 +73,14 @@ class ApiKeyAuthenticationFilterTest {
         StringWriter stringWriter = new StringWriter();
         PrintWriter writer = new PrintWriter(stringWriter);
 
-        when(request.getRequestURI()).thenReturn("/api/v1/invoices/validate");
+        when(request.getRequestURI()).thenReturn(INVOICE_VALIDATE_ENDPOINT);
         when(request.getHeader(API_KEY_HEADER)).thenReturn(null);
         when(response.getWriter()).thenReturn(writer);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        verify(response).setContentType("application/json");
+        verify(response).setContentType(CONTENT_TYPE_JSON);
         verify(filterChain, never()).doFilter(request, response);
     }
 
@@ -78,14 +89,14 @@ class ApiKeyAuthenticationFilterTest {
         StringWriter stringWriter = new StringWriter();
         PrintWriter writer = new PrintWriter(stringWriter);
 
-        when(request.getRequestURI()).thenReturn("/api/v1/invoices/validate");
-        when(request.getHeader(API_KEY_HEADER)).thenReturn("   ");
+        when(request.getRequestURI()).thenReturn(INVOICE_VALIDATE_ENDPOINT);
+        when(request.getHeader(API_KEY_HEADER)).thenReturn(WHITESPACE_ONLY);
         when(response.getWriter()).thenReturn(writer);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        verify(response).setContentType("application/json");
+        verify(response).setContentType(CONTENT_TYPE_JSON);
         verify(filterChain, never()).doFilter(request, response);
     }
 
@@ -94,20 +105,20 @@ class ApiKeyAuthenticationFilterTest {
         StringWriter stringWriter = new StringWriter();
         PrintWriter writer = new PrintWriter(stringWriter);
 
-        when(request.getRequestURI()).thenReturn("/api/v1/invoices/validate");
+        when(request.getRequestURI()).thenReturn(INVOICE_VALIDATE_ENDPOINT);
         when(request.getHeader(API_KEY_HEADER)).thenReturn(INVALID_API_KEY);
         when(response.getWriter()).thenReturn(writer);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        verify(response).setContentType("application/json");
+        verify(response).setContentType(CONTENT_TYPE_JSON);
         verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
     void doFilterInternal_WithHealthEndpoint_ShouldAllowWithoutApiKey() throws ServletException, IOException {
-        when(request.getRequestURI()).thenReturn("/actuator/health");
+        when(request.getRequestURI()).thenReturn(HEALTH_ENDPOINT);
 
         filter.doFilterInternal(request, response, filterChain);
 

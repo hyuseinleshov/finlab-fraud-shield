@@ -17,6 +17,21 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class JwtServiceTest {
 
+    // JWT Configuration constants
+    private static final String TEST_SECRET = "test-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256";
+    private static final long EXPIRATION_MS = 900_000L; // 15 minutes
+    private static final long REFRESH_EXPIRATION_MS = 604_800_000L; // 7 days
+    private static final long SHORT_EXPIRATION_MS = 1L; // 1ms for expiration tests
+
+    // Test data constants
+    private static final Long TEST_USER_ID = 123L;
+    private static final String TEST_USERNAME = "testuser";
+    private static final String TEST_USERNAME_SIMPLE = "user123";
+
+    // Token types (as stored in database - matches actual implementation)
+    private static final String TOKEN_TYPE_ACCESS = "access";
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
+
     @Mock
     private RedisTemplate<String, String> redisTemplate;
 
@@ -27,10 +42,6 @@ class JwtServiceTest {
     private ValueOperations<String, String> valueOperations;
 
     private JwtService jwtService;
-
-    private static final String TEST_SECRET = "test-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256";
-    private static final long EXPIRATION_MS = 900000L; // 15 minutes
-    private static final long REFRESH_EXPIRATION_MS = 604800000L; // 7 days
 
     @BeforeEach
     void setUp() {
@@ -47,35 +58,28 @@ class JwtServiceTest {
 
     @Test
     void generateToken_ShouldCreateValidToken() {
-        Long userId = 123L;
-        String username = "testuser";
-
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME);
 
         assertNotNull(token);
         assertFalse(token.isEmpty());
-        verify(valueOperations).set(anyString(), eq(username), any());
-        verify(jwtTokenRepository).saveToken(eq(userId), eq(token), any(Instant.class), eq("ACCESS"));
+        verify(valueOperations).set(anyString(), eq(TEST_USERNAME), any());
+        verify(jwtTokenRepository).saveToken(eq(TEST_USER_ID), eq(token), any(Instant.class), eq(TOKEN_TYPE_ACCESS));
     }
 
     @Test
     void extractUserId_ShouldReturnCorrectUserId() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         String extractedUserId = jwtService.extractUserId(token);
 
-        assertEquals(username, extractedUserId);
+        assertEquals(TEST_USERNAME_SIMPLE, extractedUserId);
     }
 
     @Test
     void validateToken_WithValidToken_ShouldReturnTrue() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
-        when(valueOperations.get(anyString())).thenReturn(username);
+        when(valueOperations.get(anyString())).thenReturn(TEST_USERNAME_SIMPLE);
 
         boolean isValid = jwtService.validateToken(token);
 
@@ -95,15 +99,13 @@ class JwtServiceTest {
     void validateToken_WithExpiredToken_ShouldReturnFalse() throws InterruptedException {
         JwtService shortLivedJwtService = new JwtService(
                 TEST_SECRET,
-                1L, // 1ms expiration
+                SHORT_EXPIRATION_MS,
                 REFRESH_EXPIRATION_MS,
                 redisTemplate,
                 jwtTokenRepository
         );
 
-        Long userId = 123L;
-        String username = "user123";
-        String token = shortLivedJwtService.generateToken(userId, username);
+        String token = shortLivedJwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         Thread.sleep(100); // Wait for token to expire
 
@@ -114,9 +116,7 @@ class JwtServiceTest {
 
     @Test
     void validateToken_WithBlacklistedToken_ShouldReturnFalse() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(true);
 
@@ -127,22 +127,18 @@ class JwtServiceTest {
 
     @Test
     void invalidateToken_ShouldBlacklistAndRemoveToken() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         jwtService.invalidateToken(token);
 
         verify(valueOperations).set(contains("jwt:blacklist:"), eq("true"), any());
         verify(redisTemplate).delete(contains("jwt:token:"));
-        verify(jwtTokenRepository).deleteToken(eq(username), eq(token));
+        verify(jwtTokenRepository).deleteToken(eq(TEST_USER_ID), eq(token));
     }
 
     @Test
     void isTokenExpired_WithValidToken_ShouldReturnFalse() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         boolean isExpired = jwtService.isTokenExpired(token);
 
@@ -151,29 +147,24 @@ class JwtServiceTest {
 
     @Test
     void generateRefreshToken_ShouldCreateValidToken() {
-        Long userId = 123L;
-        String username = "user123";
-
-        String refreshToken = jwtService.generateRefreshToken(userId, username);
+        String refreshToken = jwtService.generateRefreshToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         assertNotNull(refreshToken);
         assertFalse(refreshToken.isEmpty());
-        verify(valueOperations).set(anyString(), eq(username), any());
-        verify(jwtTokenRepository).saveToken(eq(userId), eq(refreshToken), any(Instant.class), eq("REFRESH"));
+        verify(valueOperations).set(anyString(), eq(TEST_USERNAME_SIMPLE), any());
+        verify(jwtTokenRepository).saveToken(eq(TEST_USER_ID), eq(refreshToken), any(Instant.class), eq(TOKEN_TYPE_REFRESH));
     }
 
     @Test
     void validateToken_WithDatabaseFallback_ShouldReturnTrue() {
-        Long userId = 123L;
-        String username = "user123";
-        String token = jwtService.generateToken(userId, username);
+        String token = jwtService.generateToken(TEST_USER_ID, TEST_USERNAME_SIMPLE);
 
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(jwtTokenRepository.tokenExists(eq(username), eq(token))).thenReturn(true);
+        when(jwtTokenRepository.tokenExists(eq(TEST_USER_ID), eq(token))).thenReturn(true);
 
         boolean isValid = jwtService.validateToken(token);
 
         assertTrue(isValid);
-        verify(valueOperations, times(2)).set(anyString(), eq(username), any());
+        verify(valueOperations, times(2)).set(anyString(), eq(TEST_USERNAME_SIMPLE), any());
     }
 }
