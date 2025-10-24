@@ -1,25 +1,23 @@
 FROM eclipse-temurin:21-jdk-alpine AS dependencies
 WORKDIR /app
 
-COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw .
+RUN apk add --no-cache maven
 
-RUN chmod +x mvnw && \
-    ./mvnw dependency:go-offline -B
+COPY pom.xml .
+
+RUN mvn dependency:go-offline -B
 
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
+RUN apk add --no-cache maven
+
 COPY --from=dependencies /root/.m2 /root/.m2
-COPY --from=dependencies /app/.mvn .mvn
-COPY --from=dependencies /app/mvnw .
 
 COPY pom.xml .
 COPY src src
 
-RUN chmod +x mvnw && \
-    ./mvnw clean package -DskipTests -B && \
+RUN mvn clean package -DskipTests -B && \
     mkdir -p target/extracted && \
     java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
 
