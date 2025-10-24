@@ -208,7 +208,57 @@ docker compose up --build -d
 
 ### Architecture
 
-Architecture diagram will be added here.
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        Browser[("🌐 **Web Browser**<br/>_In-memory JWT storage_")]
+        JMeter[("📊 **JMeter**<br/>_Load Testing_")]
+    end
+
+    subgraph "Edge Layer"
+        Nginx[("🔐 **Nginx Reverse Proxy**<br/>TLS • HTTP/2 • gzip • Rate limiting • Static files")]
+    end
+
+    subgraph "Docker Network"
+        subgraph "API Gateway Layer"
+            Gateway[("⚡ **API Gateway**<br/>Spring Boot<br/>JWT Auth • Routing • Token validation")]
+        end
+
+        subgraph "Business Services"
+            Accounts[("💰 **Accounts Service**<br/>Spring Boot<br/>Fraud detection • IBAN validation • Risk scoring")]
+        end
+
+        subgraph "Data Layer"
+            Redis[("🚀 **Redis**<br/>JWT sessions • Fraud cache • Velocity tracking")]
+            PostgreSQL[("🗄️ **PostgreSQL**<br/>Accounts • Transactions • Logs • History")]
+            Flyway[("🔄 **Flyway Migration**<br/>Schema creation • Seed data")]
+        end
+    end
+
+    Browser -->|"HTTPS/443<br/>JWT Bearer"| Nginx
+    JMeter -->|"HTTPS/443<br/>Load tests"| Nginx
+    Nginx -->|"/api/*"| Gateway
+    Gateway -->|"X-API-KEY"| Accounts
+    Gateway -.-> Redis
+    Gateway -.-> PostgreSQL
+    Accounts -.-> Redis
+    Accounts -.-> PostgreSQL
+    Flyway --> PostgreSQL
+
+    classDef client fill:#d9ebff,stroke:#004c8c,stroke-width:2px,color:#000
+    classDef edge fill:#ffeacc,stroke:#ff6f00,stroke-width:2px,color:#000
+    classDef gateway fill:#ead7f7,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef service fill:#d7f8dd,stroke:#1b5e20,stroke-width:2px,color:#000
+    classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px,color:#000
+    classDef migration fill:#f8bbd0,stroke:#ad1457,stroke-width:1.5px,stroke-dasharray:5 5,color:#000
+
+    class Browser,JMeter client
+    class Nginx edge
+    class Gateway gateway
+    class Accounts service
+    class Redis,PostgreSQL data
+    class Flyway migration
+```
 
 ### Technology Stack
 
