@@ -51,7 +51,7 @@ server:
     min-response-size: 1024
 
 security:
-  api-key: ${API_KEY:changeme}
+  api-key: ${API_KEY:ZmluYmFuay1oYWNrYXRob24tYXBpLWtleS0yMDI1LWZpbmxhYi1mcmF1ZC1zaGllbGQ=}
 
 logging:
   level:
