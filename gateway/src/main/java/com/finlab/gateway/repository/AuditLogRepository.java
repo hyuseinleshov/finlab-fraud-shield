@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class AuditLogRepository {
         this.objectMapper = objectMapper;
     }
 
+    @Async
     public void logAuthEvent(String userId, String action, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (user_id, action, resource_type, ip_address, user_agent, details, timestamp)
@@ -46,6 +48,7 @@ public class AuditLogRepository {
         log.debug("Logged auth event - User: {}, Action: {}, IP: {}", userId, action, ipAddress);
     }
 
+    @Async
     public void logFailedAuthEvent(String action, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (action, resource_type, ip_address, user_agent, details, timestamp)
@@ -63,6 +66,7 @@ public class AuditLogRepository {
         log.debug("Logged failed auth event - Action: {}, IP: {}", action, ipAddress);
     }
 
+    @Async
     public void logInvoiceValidation(String userId, String resourceId, String ipAddress, String userAgent, Map<String, Object> details) {
         String sql = """
             INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, timestamp)

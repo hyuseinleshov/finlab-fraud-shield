@@ -6,6 +6,7 @@ import com.finlab.accounts.repository.IBANRepository;
 import com.finlab.accounts.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,17 +62,20 @@ public class FraudScoringEngine {
     private final IBANRepository ibanRepository;
     private final TransactionRepository transactionRepository;
     private final StringRedisTemplate redisTemplate;
+    private final Executor fraudCheckExecutor;
 
     public FraudScoringEngine(
         IBANValidator ibanValidator,
         IBANRepository ibanRepository,
         TransactionRepository transactionRepository,
-        StringRedisTemplate redisTemplate
+        StringRedisTemplate redisTemplate,
+        @Qualifier("fraudCheckExecutor") Executor fraudCheckExecutor
     ) {
         this.ibanValidator = ibanValidator;
         this.ibanRepository = ibanRepository;
         this.transactionRepository = transactionRepository;
         this.redisTemplate = redisTemplate;
+        this.fraudCheckExecutor = fraudCheckExecutor;
     }
 
     /**
@@ -101,23 +106,23 @@ public class FraudScoringEngine {
 
     private List<RuleResult> executeParallelChecks(FraudCheckRequest request) {
         CompletableFuture<RuleResult> duplicateCheck = CompletableFuture.supplyAsync(() ->
-            checkDuplicateInvoice(request.invoiceNumber())
+            checkDuplicateInvoice(request.invoiceNumber()), fraudCheckExecutor
         );
 
         CompletableFuture<RuleResult> ibanValidation = CompletableFuture.supplyAsync(() ->
-            checkIbanValid(request.iban())
+            checkIbanValid(request.iban()), fraudCheckExecutor
         );
 
         CompletableFuture<RuleResult> riskyIbanCheck = CompletableFuture.supplyAsync(() ->
-            checkRiskyIban(request.iban())
+            checkRiskyIban(request.iban()), fraudCheckExecutor
         );
 
         CompletableFuture<RuleResult> amountCheck = CompletableFuture.supplyAsync(() ->
-            checkAmountManipulation(request.amount())
+            checkAmountManipulation(request.amount()), fraudCheckExecutor
         );
 
         CompletableFuture<RuleResult> velocityCheck = CompletableFuture.supplyAsync(() ->
-            checkVelocityAnomaly(request.iban(), request.vendorId())
+            checkVelocityAnomaly(request.iban(), request.vendorId()), fraudCheckExecutor
         );
 
         CompletableFuture<Void> allChecks = CompletableFuture.allOf(

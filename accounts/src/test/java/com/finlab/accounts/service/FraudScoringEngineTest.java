@@ -14,6 +14,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
 
 import java.math.BigDecimal;
+import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -68,11 +69,13 @@ class FraudScoringEngineTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
 
+        Executor directExecutor = Runnable::run;
         fraudScoringEngine = new FraudScoringEngine(
             ibanValidator,
             ibanRepository,
             transactionRepository,
-            redisTemplate
+            redisTemplate,
+            directExecutor
         );
     }
 
